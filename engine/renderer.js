@@ -309,7 +309,7 @@ newFrame: function(clearColor) {
 
   gl.bindVertexArray(vao)
 },
-drawGeometry: function(geometry, texcoords, shadingType) {
+drawGeometry: function(geometry, texcoords, normals) {
   gl.bindVertexArray(vao)
 
   //connect a_texcoord & ARRAY_BUFFER
@@ -336,15 +336,6 @@ drawGeometry: function(geometry, texcoords, shadingType) {
   //normals
   let normalBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
-
-  let normals = []
-  if (shadingType == "flat") {
-    normals = webGLextra.generateFlatShadingNormals(geometry)
-  } else if (shadingType == "smooth") {
-    normals = webGLextra.generateSmoothShadingNormals(geometry)
-  } else {
-    normals = shadingType
-  }
 
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW)
   gl.enableVertexAttribArray(normalAttributeLocation)

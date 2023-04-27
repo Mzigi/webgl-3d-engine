@@ -7,6 +7,7 @@ let PressedKeys = {
     "ArrowRight": false,
     "ArrowDown": false,
     "ArrowLeft": false,
+    " ": false,
 }
 
 document.body.onkeydown = function(e) {
@@ -30,10 +31,24 @@ function degToRad(d) {
 }
 
 let Player = {
-    "pos": [0,3,0],
+    "pos": [0,8,0],
     "rotationY": 0,
     "rotationX": 0,
+    "velocityY": 0,
 }
+
+let ShinyMaterial = new material("assets/textures/snow.png")
+ShinyMaterial.specularShininess = 8
+ShinyMaterial.specularStrength = 0.3
+ShinyMaterial.loadTextures()
+
+let PlayerMesh = new mesh("assets/models/Player.obj", ShinyMaterial, [0,0,0])
+PlayerMesh.visible = true
+PlayerMesh.origin = [0,-1,0]
+
+let PlayerHitbox = new hitbox("mesh")
+PlayerMesh.attachHitbox(PlayerHitbox)
+console.log(PlayerHitbox.mesh)
 
 function offsetWithRotation(pos, rotation, offset) {
     let matrix = webGLextra.m4.translation(pos[0],pos[1],pos[2])
@@ -51,7 +66,7 @@ function moveVectorForward(vec2, steps, direction) {
 	return newVector
 }
 
-let totalFrames = 0
+let FPSCounter = 0
 
 //lighting
 renderer.setAmbientLightColor([0.23,0.23,0.26])
@@ -67,9 +82,6 @@ let terrainTest = new mesh("assets/models/terrainTest.obj","assets/textures/snow
 terrainTest.buildNormals("smooth")*/
 
 //primitive materials
-let ShinyMaterial = new material("assets/textures/snow.png")
-ShinyMaterial.specularShininess = 8
-ShinyMaterial.specularStrength = 0.3
 
 //parasol
 let ParasolMaterial = new material("assets/textures/parasol.png")
@@ -78,14 +90,14 @@ ParasolMaterial.loadTextures()
 let parasol = new mesh("assets/models/parasol.obj",ParasolMaterial, [-6,2,0])
 parasol.buildNormals("smooth")
 
-let ParasolHitbox = new hitbox("box")
-ParasolHitbox.mesh = parasol
+parasol.attachHitbox(new hitbox("box"))
 
 //primitives
 
 //flat
-let uvSphere = new mesh("assets/models/uv-sphere.obj",ShinyMaterial,[0,2,0])
+let uvSphere = new mesh("assets/models/ico-sphere.obj",ShinyMaterial,[0,2,0])
 uvSphere.buildNormals("flat")
+uvSphere.attachHitbox(new hitbox("box"))
 
 let flatCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), "assets/textures/snow.png",[6,2,-1])
 flatCube.buildNormals("flat")
@@ -96,8 +108,9 @@ flatCubeHitbox.mesh = flatCube
 flatCube.hitbox = flatCubeHitbox
 
 //smooth
-let smoothUvSphere = new mesh("assets/models/uv-sphere.obj",ShinyMaterial,[3,2,0])
+let smoothUvSphere = new mesh("assets/models/ico-sphere.obj",ShinyMaterial,[3,2,0])
 smoothUvSphere.buildNormals("smooth")
+smoothUvSphere.attachHitbox(new hitbox("box"))
 
 let smoothCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), "assets/textures/snow.png",[9,2,-1])
 smoothCube.buildNormals("smooth")
@@ -114,41 +127,76 @@ ArtisansMaterial.loadTextures()
 
 let ArtisansHub = new mesh("assets/models/Artisans_Hub.obj", ArtisansMaterial,[0,0,0])
 ArtisansHub.buildNormals("smooth")
+ArtisansHub.attachHitbox(new hitbox("mesh"))
 
-let ArtisansHitbox = new hitbox("box")
-ArtisansHitbox.mesh = ArtisansHub
-ArtisansHub.hitbox = ArtisansHitbox
+let lastSecond = new Date().getTime() / 1000
+let lastTick = new Date().getTime() / 1000
 
 function tick() {
+    let deltaTime = (new Date().getTime() / 1000) - lastTick
+    lastTick = new Date().getTime() / 1000
+
+    if (new Date().getTime() / 1000 - lastSecond >= 1) {
+        //console.log("FPS: " + totalFrames)
+        FPSCounter = 0
+        lastSecond = new Date().getTime() / 1000
+    }
+
     //controls
     if (PressedKeys["s"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -0.2, Player.rotationY + degToRad(90))
+        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -12 * deltaTime, Player.rotationY + degToRad(90))
         Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
     }
     if (PressedKeys["w"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 0.2, Player.rotationY + degToRad(90))
+        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 12 * deltaTime, Player.rotationY + degToRad(90))
         Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
     }
     if (PressedKeys["a"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -0.2, Player.rotationY)
+        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -12 * deltaTime, Player.rotationY)
         Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
     }
     if (PressedKeys["d"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 0.2, Player.rotationY)
+        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 12 * deltaTime, Player.rotationY)
         Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
     }
     if (PressedKeys["ArrowLeft"]) {
-        Player.rotationY = Player.rotationY + degToRad(3)
+        Player.rotationY = (Player.rotationY + degToRad(180) * deltaTime) % degToRad(360)
     }
     if (PressedKeys["ArrowRight"]) {
-        Player.rotationY = Player.rotationY - degToRad(3)
+        Player.rotationY = (Player.rotationY - degToRad(180) * deltaTime) % degToRad(360)
     }
     if (PressedKeys["ArrowUp"]) {
-        Player.rotationX = Player.rotationX + degToRad(3)
+        Player.rotationX = Math.min(Player.rotationX + degToRad(180) * deltaTime, 1.5708)
     }
     if (PressedKeys["ArrowDown"]) {
-        Player.rotationX = Player.rotationX - degToRad(3)
+        Player.rotationX = Math.max(Player.rotationX - degToRad(180) * deltaTime, -1.5708)
     }
+
+    Player.velocityY = Math.max(Player.velocityY - 0.3 * deltaTime,-5)
+
+    let estimatedPlayerY = Player.pos[1] + Player.velocityY
+    PlayerMesh.pos = [Player.pos[0],estimatedPlayerY,Player.pos[2]]
+
+    PlayerMesh.updateHitbox()
+
+    let canGoDown = true
+    for (let i = 0; i < allMeshes.length; i++) {
+        if (allMeshes[i].hitbox) {
+            if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
+                canGoDown = false
+                Player.velocityY = 0
+            }
+        }
+    }
+
+    if (canGoDown) {
+        Player.pos[1] = estimatedPlayerY
+    } else {
+        if (PressedKeys[" "]) {
+            Player.velocityY = 0.2
+        }
+    }
+    PlayerMesh.pos = Player.pos
 
     renderer.cameraMatrix = webGLextra.m4.xRotate(webGLextra.m4.yRotate(webGLextra.m4.translation(Player["pos"][0],Player["pos"][1],Player["pos"][2]),Player["rotationY"]),Player.rotationX)
 
@@ -202,7 +250,7 @@ function tick() {
     smoothUvSphere.rotation[2] += 0.01
 
     //hitboxes
-    ParasolHitbox.calculateMeshBox()
+    parasol.updateHitbox()
     flatCubeHitbox.calculateMeshBox()
     smoothCubeHitbox.calculateMeshBox()
 
@@ -211,19 +259,23 @@ function tick() {
         ArtisansHitbox.calculateMeshBox()
     }*/
 
-    if (flatCubeHitbox.collidesWith(smoothCubeHitbox)) {
-        console.log("theyre colliding!")
-    }
+    /*if (flatCubeHitbox.collidesWith(smoothCubeHitbox)) {
+        //console.log("theyre colliding!")
+    }*/
     //flatCubeHitbox.visualizeMeshBox()
     //smoothCubeHitbox.visualizeMeshBox()
-    ParasolHitbox.visualizeMeshBox()
+    //ParasolHitbox.visualizeMeshBox()
     
     //render meshes
     for (let i = 0; i < allMeshes.length; i++) {
         allMeshes[i].renderMesh()
     }
+
+    /*for (let i = 0; i < 40; i++) {
+        ArtisansHub.renderMesh()
+    }*/
     
-    totalFrames += 1
+    FPSCounter += 1
     window.requestAnimationFrame(tick)
 }
 

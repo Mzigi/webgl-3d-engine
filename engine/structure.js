@@ -28,6 +28,18 @@ class material {
             this.loadTexture(textureTypes[i])
         }
     }
+
+    useMaterial() {
+        //textures
+        let textureTypes = ["diffuse"]
+        for (let i = 0; i < textureTypes.length; i++) {
+            renderer.useTextureGLOBAL(this[textureTypes[i]], textureTypes[i])
+        }
+
+        //properties
+        renderer.setSpecularStrength(this.specularStrength)
+        renderer.setSpecularShininess(this.specularShininess)
+    }
 }
 
 class mesh {
@@ -40,13 +52,14 @@ class mesh {
         this.textureLink = null //DEPRECATED, use materials
         this.material = null
         this.hitbox = null
+        this.visible = true
         if (typeof(material) === "string") {
             this.textureLink = material
         } else {
             this.material = material
         }
         this.mesh = null
-        this.shading = "normals" //DEPRECATED, use buildNormals() or leave as "normals"
+        //this.shading = "normals" FULLY REMOVED FROM RENDERER, USE buildNormals(type) INSTEAD
 
         if (this.textureLink && renderer.textureExists(this.textureLink) === false) {
             renderer.loadTextureGLOBAL(this.textureLink)
@@ -64,9 +77,15 @@ class mesh {
                 mesh = meshCache[objLink]
             }
             object.mesh = mesh
+            object.mesh.normals = new Float32Array(object.mesh.normals)
+            object.mesh.texcoord = new Float32Array(object.mesh.texcoord)
+            object.mesh.geometry = new Float32Array(object.mesh.geometry)
 
             if (object.generateNormalsOnLoad) {
                 object.buildNormals(object.generateNormalsOnLoad)
+            }
+            if (object.hitbox) {
+                object.updateHitbox()
             }
         }
 
@@ -80,54 +99,70 @@ class mesh {
     }
 
     renderMesh () {
+        if (!this.mesh) {
+            return
+        }
+        if (!this.visible) {
+            return
+        }
         let textureOrMaterialLoaded = false
         if (this.material) {
             if (renderer.textureExists(this.material.diffuse)) {
                 textureOrMaterialLoaded = true
             }
-        }
-        if (renderer.textureExists(this.textureLink)) {
+        } else if (renderer.textureExists(this.textureLink)) {
             textureOrMaterialLoaded = true
         }
-        if (this.mesh && this.mesh.geometry && textureOrMaterialLoaded) {
+        let canSee = true
+        if (this.hitbox) {
+            canSee = this.hitbox.frustumIntersects()
+        }
+        if (textureOrMaterialLoaded && canSee) {
             renderer.globalTransform = this.pos
             renderer.globalRotation = this.rotation
             renderer.globalScale = this.scale
             renderer.globalOriginOffset = this.origin
 
             if (this.textureLink) {
+                renderer.useTextureGLOBAL(this.textureLink)
+
                 renderer.setSpecularStrength(0.1)
                 renderer.setSpecularShininess(8)
             } else {
-                renderer.setSpecularStrength(this.material.specularStrength)
-                renderer.setSpecularShininess(this.material.specularShininess)
+                this.material.useMaterial()
             }
 
-            if (this.textureLink) {
-                renderer.useTextureGLOBAL(this.textureLink)
-            } else if (this.material) {
-                renderer.useTextureGLOBAL(this.material.diffuse, "diffuse")
-            }
-
-            let shading = this.mesh.normals
-            if (this.shading !== "normals") {
+            /*if (this.shading !== "normals") {
                 shading = this.shading
-            }
-            renderer.drawGeometry(this.mesh.geometry, this.mesh.texcoord, shading)
+            }*/
+            renderer.drawGeometry(this.mesh.geometry, this.mesh.texcoord, this.mesh.normals)
         }
     }
 
     buildNormals(type) {
         if (this.mesh && this.mesh.geometry) {
-            if (type === "flat") {
+            if (type === "flat") { 
                 this.mesh.normals = webGLextra.generateFlatShadingNormals(this.mesh.geometry)
             } else if (type === "smooth") {
                 this.mesh.normals = webGLextra.generateSmoothShadingNormals(this.mesh.geometry)
             } else {
                 console.warn("Shading type " + type + " does not exist")
             }
+
+            this.mesh.normals = new Float32Array(this.mesh.normals) //optimization
         } else {
             this.generateNormalsOnLoad = type
+        }
+    }
+
+    attachHitbox(hitbox) {
+        hitbox.mesh = this
+        this.hitbox = hitbox
+    }
+
+    updateHitbox() {
+        if (this.hitbox) {
+            this.hitbox.calculateMeshBox()
         }
     }
 }

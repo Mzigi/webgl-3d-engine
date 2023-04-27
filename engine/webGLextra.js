@@ -557,16 +557,19 @@ var webGLextra = {
             let translation = [m[12],m[13],m[14]]
             return translation
           },
-          multiplyWith: function(mat,vec3) {
+          multiplyWith: function(mat,vec3,w) {
             let x = vec3[0]
             let y = vec3[1]
             let z = vec3[2]
-            let w = 1 //1 to include transformation, 0 to not include transformation
+            if (!w) {
+              w = 1 //1 to include transformation, 0 to not include transformation
+            }
 
-            let res = [0, 0, 0]
+            let res = [0, 0, 0, 0]
             res[0] = mat[0*4+0]*x + mat[1*4+0]*y + mat[2*4+0]*z + mat[3*4+0]*w
             res[1] = mat[0*4+1]*x + mat[1*4+1]*y + mat[2*4+1]*z + mat[3*4+1]*w
             res[2] = mat[0*4+2]*x + mat[1*4+2]*y + mat[2*4+2]*z + mat[3*4+2]*w
+            res[3] = mat[0*4+3]*x + mat[1*4+3]*y + mat[2*4+3]*z + mat[3*4+3]*w
             return res
           }
       },
