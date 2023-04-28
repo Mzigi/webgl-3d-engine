@@ -6,6 +6,14 @@ function dotProduct(a,b){
     return result;
 }
 
+function getDistance(a,b) {
+    let x = a[0] - b[0]
+    let y = a[1] - b[1]
+    let z = a[2] - b[2]
+
+    return Math.sqrt(x*x+y*y+z*z)
+}
+
 function getViewProjectionMatrix() {
     //compute matrix
     let projectionMatrix = webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar)
@@ -371,6 +379,9 @@ class hitbox {
                 let mesh1 = this.mesh
                 let mesh2 = otherHitbox.mesh
 
+                let mesh1MaxSize = getDistance([this.minX,this.minY,this.minZ],[this.maxX,this.maxY,this.maxZ])
+                let mesh1Origin = [mesh1.pos[0],mesh1.pos[1],mesh1.pos[2]]
+
                 let mesh1Matrix = webGLextra.m4.translation(mesh1.pos[0],mesh1.pos[1],mesh1.pos[2])
                 mesh1Matrix = webGLextra.m4.xRotate(mesh1Matrix, mesh1.rotation[0])
                 mesh1Matrix = webGLextra.m4.yRotate(mesh1Matrix, mesh1.rotation[1])
@@ -395,16 +406,35 @@ class hitbox {
                 }
 
                 let mesh2geometry = []
-                for (let i = 0; i < mesh2.mesh.geometry.length / 3; i++) {
-                    let vec3 = [mesh2.mesh.geometry[i*3+0],mesh2.mesh.geometry[i*3+1],mesh2.mesh.geometry[i*3+2]]
+                for (let i = 0; i < mesh2.mesh.geometry.length / 9; i++) {
+                    let p1 = [mesh2.mesh.geometry[i*9+0],mesh2.mesh.geometry[i*9+1],mesh2.mesh.geometry[i*9+2]]
+                    let p2 = [mesh2.mesh.geometry[i*9+3],mesh2.mesh.geometry[i*9+4],mesh2.mesh.geometry[i*9+5]]
+                    let p3 = [mesh2.mesh.geometry[i*9+6],mesh2.mesh.geometry[i*9+7],mesh2.mesh.geometry[i*9+8]]
+
+                    /*let vec3 = [mesh2.mesh.geometry[i*3+0],mesh2.mesh.geometry[i*3+1],mesh2.mesh.geometry[i*3+2]]
                     let newVec3 = webGLextra.m4.multiplyWith(mesh2Matrix, vec3)
                     mesh2geometry[i*3+0] = newVec3[0]
                     mesh2geometry[i*3+1] = newVec3[1]
-                    mesh2geometry[i*3+2] = newVec3[2]
+                    mesh2geometry[i*3+2] = newVec3[2]*/
+
+                    let maxTriangleSize = (getDistance(p1,p2) + getDistance(p2,p3))
+                    if (getDistance(mesh1Origin, p1) < mesh1MaxSize + maxTriangleSize) {
+                        mesh2geometry.push(p1[0])
+                        mesh2geometry.push(p1[1])
+                        mesh2geometry.push(p1[2])
+
+                        mesh2geometry.push(p2[0])
+                        mesh2geometry.push(p2[1])
+                        mesh2geometry.push(p2[2])
+
+                        mesh2geometry.push(p3[0])
+                        mesh2geometry.push(p3[1])
+                        mesh2geometry.push(p3[2])
+                    }
                 }
 
                 let mesh1TriangleCount = mesh1.mesh.geometry.length / 9
-                let mesh2TriangleCount = mesh2.mesh.geometry.length / 9
+                let mesh2TriangleCount = mesh2geometry.length / 9
 
                 for (let i = 0; i < mesh1TriangleCount; i++) {
                     let p1 = [mesh1geometry[i*9+0],mesh1geometry[i*9+1],mesh1geometry[i*9+2]]
@@ -418,7 +448,7 @@ class hitbox {
                         let p3 = [mesh2geometry[j*9+6],mesh2geometry[j*9+7],mesh2geometry[j*9+8]]
 
                         let triangle2 = [p1,p2,p3]
-                        
+
                         if (triangleTriangleIntersect(triangle,triangle2)) {
                             colliding = true
                             return colliding

@@ -1,4 +1,4 @@
-let PressedKeys = {
+/*let PressedKeys = {
     "w" : false,
     "a" : false,
     "s" : false,
@@ -22,6 +22,15 @@ document.body.onkeyup = function(e) {
     }
 }
 
+let Player = {
+    "pos": [0,8,0],
+    "rotationY": 0,
+    "rotationX": 0,
+    "velocityY": 0,
+}*/
+
+let SelfPlayer = new Player([0,15,-15])
+
 function radToDeg(r) {
     return r * 180 / Math.PI;
 }
@@ -30,25 +39,18 @@ function degToRad(d) {
     return d * Math.PI / 180;
 }
 
-let Player = {
-    "pos": [0,8,0],
-    "rotationY": 0,
-    "rotationX": 0,
-    "velocityY": 0,
-}
-
 let ShinyMaterial = new material("assets/textures/snow.png")
 ShinyMaterial.specularShininess = 8
 ShinyMaterial.specularStrength = 0.3
 ShinyMaterial.loadTextures()
 
-let PlayerMesh = new mesh("assets/models/Player.obj", ShinyMaterial, [0,0,0])
+/*let PlayerMesh = new mesh("assets/models/Player.obj", ShinyMaterial, [0,0,0])
 PlayerMesh.visible = true
 PlayerMesh.origin = [0,-1,0]
 
 let PlayerHitbox = new hitbox("mesh")
 PlayerMesh.attachHitbox(PlayerHitbox)
-console.log(PlayerHitbox.mesh)
+console.log(PlayerHitbox.mesh)*/
 
 function offsetWithRotation(pos, rotation, offset) {
     let matrix = webGLextra.m4.translation(pos[0],pos[1],pos[2])
@@ -137,27 +139,31 @@ function tick() {
     lastTick = new Date().getTime() / 1000
 
     if (new Date().getTime() / 1000 - lastSecond >= 1) {
-        //console.log("FPS: " + totalFrames)
+        console.log("FPS: " + FPSCounter)
         FPSCounter = 0
         lastSecond = new Date().getTime() / 1000
     }
 
+    SelfPlayer.tickUpdate(deltaTime)
+
+    /*let NewPlayerPos = [Player.pos[0],Player.pos[1],Player.pos[2]]
+
     //controls
     if (PressedKeys["s"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -12 * deltaTime, Player.rotationY + degToRad(90))
-        Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
+        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -12 * deltaTime, Player.rotationY + degToRad(90))
+        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
     }
     if (PressedKeys["w"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 12 * deltaTime, Player.rotationY + degToRad(90))
-        Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
+        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], 12 * deltaTime, Player.rotationY + degToRad(90))
+        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
     }
     if (PressedKeys["a"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], -12 * deltaTime, Player.rotationY)
-        Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
+        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -12 * deltaTime, Player.rotationY)
+        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
     }
     if (PressedKeys["d"]) {
-        let newVec2 = moveVectorForward([Player.pos[0],Player.pos[2]], 12 * deltaTime, Player.rotationY)
-        Player.pos = [newVec2[0],Player.pos[1],newVec2[1]]
+        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], 12 * deltaTime, Player.rotationY)
+        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
     }
     if (PressedKeys["ArrowLeft"]) {
         Player.rotationY = (Player.rotationY + degToRad(180) * deltaTime) % degToRad(360)
@@ -172,33 +178,96 @@ function tick() {
         Player.rotationX = Math.max(Player.rotationX - degToRad(180) * deltaTime, -1.5708)
     }
 
-    Player.velocityY = Math.max(Player.velocityY - 0.3 * deltaTime,-5)
-
+    //y movement
+    Player.velocityY = Math.max(Player.velocityY - 1 * deltaTime,-1.9)
     let estimatedPlayerY = Player.pos[1] + Player.velocityY
     PlayerMesh.pos = [Player.pos[0],estimatedPlayerY,Player.pos[2]]
-
     PlayerMesh.updateHitbox()
 
-    let canGoDown = true
+    let canMoveY = true
     for (let i = 0; i < allMeshes.length; i++) {
         if (allMeshes[i].hitbox) {
             if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
-                canGoDown = false
+                canMoveY = false
                 Player.velocityY = 0
             }
         }
     }
 
-    if (canGoDown) {
+    if (canMoveY) {
         Player.pos[1] = estimatedPlayerY
     } else {
         if (PressedKeys[" "]) {
-            Player.velocityY = 0.2
+            Player.velocityY = 0.4
         }
     }
     PlayerMesh.pos = Player.pos
+    PlayerMesh.updateHitbox()
 
-    renderer.cameraMatrix = webGLextra.m4.xRotate(webGLextra.m4.yRotate(webGLextra.m4.translation(Player["pos"][0],Player["pos"][1],Player["pos"][2]),Player["rotationY"]),Player.rotationX)
+    if (NewPlayerPos[0] !== Player.pos[0] && NewPlayerPos[1] !== Player.pos[1] && NewPlayerPos[2] !== Player.pos[2]) {
+        //x movement
+        let extraPlayerY = Player.pos[1] + 12 * deltaTime
+        PlayerMesh.pos = [NewPlayerPos[0],extraPlayerY,Player.pos[2]]
+        PlayerMesh.updateHitbox()
+
+        let canMoveX = true
+        for (let i = 0; i < allMeshes.length; i++) {
+            if (allMeshes[i].hitbox) {
+                if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
+                    canMoveX = false
+                }
+            }
+        }
+
+        if (canMoveX) {
+            Player.pos[0] = NewPlayerPos[0]
+        }
+
+        //z movement
+        PlayerMesh.pos = [Player.pos[0],extraPlayerY,NewPlayerPos[2]]
+        PlayerMesh.updateHitbox()
+
+        let canMoveZ = true
+        for (let i = 0; i < allMeshes.length; i++) {
+            if (allMeshes[i].hitbox) {
+                if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
+                    canMoveZ = false
+                }
+            }
+        }
+
+        if (canMoveZ) {
+            Player.pos[2] = NewPlayerPos[2]
+        }
+
+        if (canMoveZ || canMoveX) {
+            let realNewExtraPlayerY = extraPlayerY
+            let eachYSectionLength = 2
+            let Ysection = (extraPlayerY - Player.pos[1]) / eachYSectionLength
+            
+            for (let i = 0; i < eachYSectionLength; i++) {
+                let newExtraPlayerY = Ysection * i + Player.pos[1]
+                
+                PlayerMesh.pos = [Player.pos[0],newExtraPlayerY,Player.pos[2]]
+                PlayerMesh.updateHitbox()
+
+                let colliding = false
+                for (let j = 0; j < allMeshes.length; j++) {
+                    if (allMeshes[j].hitbox) {
+                        if (PlayerHitbox.collidesWith(allMeshes[j].hitbox)) {
+                            colliding = true
+                        }
+                    }
+                }
+                if (!colliding) {
+                    realNewExtraPlayerY = newExtraPlayerY
+                }
+            }
+            Player.pos[1] = realNewExtraPlayerY
+        }
+    }
+    
+    renderer.cameraMatrix = webGLextra.m4.xRotate(webGLextra.m4.yRotate(webGLextra.m4.translation(Player["pos"][0],Player["pos"][1],Player["pos"][2]),Player["rotationY"]),Player.rotationX)*/
 
     /*if (PressedKeys["s"]) {
         PlayerMatrix = webGLextra.m4.translate(PlayerMatrix, 0,0,0.2)
