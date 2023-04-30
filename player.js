@@ -45,6 +45,12 @@ class Player {
 
         let PlayerHitbox = new hitbox("mesh")
         this.PlayerMesh.attachHitbox(PlayerHitbox)
+
+        //sounds
+        this.sounds = {
+            "footsteps": new audioPlayer("assets/audio/footsteps.mp3")
+        }
+        this.sounds.footsteps.loop(true)
     }
 
     collidesAt(pos) {
@@ -109,6 +115,12 @@ class Player {
         if (isKeyPressed("d")) {
             let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], currentWalkSpeed * deltaTime, this.rotationY)
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
+        }
+
+        if (NewPlayerPos[0] === this.pos[0] && NewPlayerPos[1] === this.pos[1] && NewPlayerPos[2] === this.pos[2]) {
+            this.sounds.footsteps.stop()
+        } else {
+            this.sounds.footsteps.play()
         }
 
         return NewPlayerPos
