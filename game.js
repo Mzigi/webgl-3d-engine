@@ -29,7 +29,7 @@ let Player = {
     "velocityY": 0,
 }*/
 
-let SelfPlayer = new Player([0,15,-15])
+let SelfPlayer = new Player([0,15,0])
 
 function radToDeg(r) {
     return r * 180 / Math.PI;
@@ -37,6 +37,22 @@ function radToDeg(r) {
 
 function degToRad(d) {
     return d * Math.PI / 180;
+}
+
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return [parseInt(result[1], 16) / 255,
+      parseInt(result[2], 16) / 255,
+      parseInt(result[3], 16) / 255]
+}
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
 
 let ShinyMaterial = new material("assets/textures/snow.png")
@@ -74,11 +90,14 @@ let FPSCounter = 0
 renderer.setAmbientLightColor([0.23,0.23,0.26])
 renderer.setDirectionalLightColor([0.9,0.9,0.9])
 renderer.setDirectionalLightDirection([-0.2,-1,-0.25])
+renderer.clearColor = [0.258,0.529,0.960,1]
 
 //test mesh
 /*let cube = webGLextra.meshBuilder.createCube([2000,1,2000])
-let cubeMesh = new mesh(cube, "assets/textures/snow.png", [-1000,-1,-1000])
+let cubeMesh = new mesh(cube, ShinyMaterial, [-1000,-1,-1000])
 cubeMesh.buildNormals("flat")
+cubeMesh.updateHitbox()
+cubeMesh.attachHitbox(new hitbox("box"))
 
 let terrainTest = new mesh("assets/models/terrainTest.obj","assets/textures/snow.png", [0,0,0])
 terrainTest.buildNormals("smooth")*/
@@ -97,11 +116,14 @@ parasol.attachHitbox(new hitbox("box"))
 //primitives
 
 //flat
+let cubeMaterial = new material("assets/textures/snow.png")
+cubeMaterial.loadTextures()
+
 let uvSphere = new mesh("assets/models/ico-sphere.obj",ShinyMaterial,[0,2,0])
 uvSphere.buildNormals("flat")
 uvSphere.attachHitbox(new hitbox("box"))
 
-let flatCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), "assets/textures/snow.png",[6,2,-1])
+let flatCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), cubeMaterial,[6,2,-1])
 flatCube.buildNormals("flat")
 flatCube.origin = [-1,-1,-1]
 
@@ -114,7 +136,7 @@ let smoothUvSphere = new mesh("assets/models/ico-sphere.obj",ShinyMaterial,[3,2,
 smoothUvSphere.buildNormals("smooth")
 smoothUvSphere.attachHitbox(new hitbox("box"))
 
-let smoothCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), "assets/textures/snow.png",[9,2,-1])
+let smoothCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), cubeMaterial,[9,2,-1])
 smoothCube.buildNormals("smooth")
 smoothCube.origin = [-1,-1,-1]
 
@@ -124,15 +146,65 @@ smoothCube.hitbox = smoothCubeHitbox
 
 //artisans
 let ArtisansMaterial = new material("assets/textures/High.png")
+ArtisansMaterial.normal = "assets/textures/ArtisansNormalMap.png"
 ArtisansMaterial.specularStrength = 0
 ArtisansMaterial.loadTextures()
 
 let ArtisansHub = new mesh("assets/models/Artisans_Hub.obj", ArtisansMaterial,[0,0,0])
 ArtisansHub.buildNormals("smooth")
+ArtisansHub.visible = true
 ArtisansHub.attachHitbox(new hitbox("mesh"))
+
+//pbr test
+let pbrRockMaterial = new material("assets/textures/pbrRockDiffuse.png")
+pbrRockMaterial.normal = "assets/textures/normalMapTest.png"
+pbrRockMaterial.specular = "assets/textures/pbrRockSpecular.png"
+pbrRockMaterial.specularShininess = 8
+pbrRockMaterial.specularStrength = 4
+pbrRockMaterial.filteringMode = "nearest"
+pbrRockMaterial.loadTextures()
+
+let pbrRockMesh = new mesh("assets/models/plane.obj", pbrRockMaterial, [0,0,-4])
+pbrRockMesh.buildNormals("flat")
+
+//pbr concrete
+let concreteMaterial = new material("assets/textures/concrete_diffuse.jpg")
+concreteMaterial.normal = "assets/textures/concrete_normal.jpg"
+concreteMaterial.specular = "assets/textures/concrete_specular.jpg"
+concreteMaterial.ao = "assets/textures/concrete_ao.jpg"
+concreteMaterial.specularShininess = 8
+concreteMaterial.specularStrength = 0.5
+concreteMaterial.loadTextures()
+
+let concretePlane = new mesh("assets/models/subdividedPlane.obj", concreteMaterial, [0,0,0])
+concretePlane.scale = [1,1,1]
+concretePlane.buildNormals("flat")
+concretePlane.attachHitbox(new hitbox("box"))
+concretePlane.updateHitbox()
+
+let pointLightTest = new pointLight([0,5,0],1000,3200000)
+let pointLightTest2 = new pointLight([0,5,0],10,1)
+
+//sun visualization
+/*let sunMaterial = new material("assets/textures/red.png")
+sunMaterial.loadTextures()
+
+let sunMesh = new mesh("assets/models/ico-sphere.obj", sunMaterial, [0,0,0])
+sunMesh.scale = [10,10,10]
+
+let sunDistance = 200*/
+
+/*let map_neighborhood_newMaterial = new material("assets/textures/mapTest.png")
+let map_neighborhood_new = new mesh("assets/models/mapTest.obj", map_neighborhood_newMaterial, [0,0,0])
+map_neighborhood_new.buildNormals("flat")
+map_neighborhood_new.attachHitbox(new hitbox("mesh"))
+map_neighborhood_newMaterial.filteringMode = "nearest"
+map_neighborhood_newMaterial.loadTextures()*/
 
 let lastSecond = new Date().getTime() / 1000
 let lastTick = new Date().getTime() / 1000
+
+let sunDirection = 0
 
 function tick() {
     let deltaTime = (new Date().getTime() / 1000) - lastTick
@@ -146,160 +218,21 @@ function tick() {
 
     SelfPlayer.tickUpdate(deltaTime)
 
-    /*let NewPlayerPos = [Player.pos[0],Player.pos[1],Player.pos[2]]
+    let ambientC = hexToRgb(document.getElementById("ambient").value)
+    let direcC = hexToRgb(document.getElementById("directional").value)
+    //renderer.setAmbientLightColor([ambientC[0],ambientC[1],ambientC[2]])
+    //renderer.clearColor = [direcC[0],direcC[1],direcC[2],1]
+    //renderer.setDirectionalLightColor([direcC[0],direcC[1],direcC[2]])
+    //renderer.setDirectionalLightColor([1 - ambientC[0],1 - ambientC[1],1 - ambientC[2]])
 
-    //controls
-    if (PressedKeys["s"]) {
-        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -12 * deltaTime, Player.rotationY + degToRad(90))
-        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
-    }
-    if (PressedKeys["w"]) {
-        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], 12 * deltaTime, Player.rotationY + degToRad(90))
-        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
-    }
-    if (PressedKeys["a"]) {
-        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -12 * deltaTime, Player.rotationY)
-        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
-    }
-    if (PressedKeys["d"]) {
-        let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], 12 * deltaTime, Player.rotationY)
-        NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
-    }
-    if (PressedKeys["ArrowLeft"]) {
-        Player.rotationY = (Player.rotationY + degToRad(180) * deltaTime) % degToRad(360)
-    }
-    if (PressedKeys["ArrowRight"]) {
-        Player.rotationY = (Player.rotationY - degToRad(180) * deltaTime) % degToRad(360)
-    }
-    if (PressedKeys["ArrowUp"]) {
-        Player.rotationX = Math.min(Player.rotationX + degToRad(180) * deltaTime, 1.5708)
-    }
-    if (PressedKeys["ArrowDown"]) {
-        Player.rotationX = Math.max(Player.rotationX - degToRad(180) * deltaTime, -1.5708)
-    }
+    sunDirection = sunDirection + 0.01 % degToRad(360)
 
-    //y movement
-    Player.velocityY = Math.max(Player.velocityY - 1 * deltaTime,-1.9)
-    let estimatedPlayerY = Player.pos[1] + Player.velocityY
-    PlayerMesh.pos = [Player.pos[0],estimatedPlayerY,Player.pos[2]]
-    PlayerMesh.updateHitbox()
-
-    let canMoveY = true
-    for (let i = 0; i < allMeshes.length; i++) {
-        if (allMeshes[i].hitbox) {
-            if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
-                canMoveY = false
-                Player.velocityY = 0
-            }
-        }
-    }
-
-    if (canMoveY) {
-        Player.pos[1] = estimatedPlayerY
-    } else {
-        if (PressedKeys[" "]) {
-            Player.velocityY = 0.4
-        }
-    }
-    PlayerMesh.pos = Player.pos
-    PlayerMesh.updateHitbox()
-
-    if (NewPlayerPos[0] !== Player.pos[0] && NewPlayerPos[1] !== Player.pos[1] && NewPlayerPos[2] !== Player.pos[2]) {
-        //x movement
-        let extraPlayerY = Player.pos[1] + 12 * deltaTime
-        PlayerMesh.pos = [NewPlayerPos[0],extraPlayerY,Player.pos[2]]
-        PlayerMesh.updateHitbox()
-
-        let canMoveX = true
-        for (let i = 0; i < allMeshes.length; i++) {
-            if (allMeshes[i].hitbox) {
-                if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
-                    canMoveX = false
-                }
-            }
-        }
-
-        if (canMoveX) {
-            Player.pos[0] = NewPlayerPos[0]
-        }
-
-        //z movement
-        PlayerMesh.pos = [Player.pos[0],extraPlayerY,NewPlayerPos[2]]
-        PlayerMesh.updateHitbox()
-
-        let canMoveZ = true
-        for (let i = 0; i < allMeshes.length; i++) {
-            if (allMeshes[i].hitbox) {
-                if (PlayerHitbox.collidesWith(allMeshes[i].hitbox)) {
-                    canMoveZ = false
-                }
-            }
-        }
-
-        if (canMoveZ) {
-            Player.pos[2] = NewPlayerPos[2]
-        }
-
-        if (canMoveZ || canMoveX) {
-            let realNewExtraPlayerY = extraPlayerY
-            let eachYSectionLength = 2
-            let Ysection = (extraPlayerY - Player.pos[1]) / eachYSectionLength
-            
-            for (let i = 0; i < eachYSectionLength; i++) {
-                let newExtraPlayerY = Ysection * i + Player.pos[1]
-                
-                PlayerMesh.pos = [Player.pos[0],newExtraPlayerY,Player.pos[2]]
-                PlayerMesh.updateHitbox()
-
-                let colliding = false
-                for (let j = 0; j < allMeshes.length; j++) {
-                    if (allMeshes[j].hitbox) {
-                        if (PlayerHitbox.collidesWith(allMeshes[j].hitbox)) {
-                            colliding = true
-                        }
-                    }
-                }
-                if (!colliding) {
-                    realNewExtraPlayerY = newExtraPlayerY
-                }
-            }
-            Player.pos[1] = realNewExtraPlayerY
-        }
-    }
-    
-    renderer.cameraMatrix = webGLextra.m4.xRotate(webGLextra.m4.yRotate(webGLextra.m4.translation(Player["pos"][0],Player["pos"][1],Player["pos"][2]),Player["rotationY"]),Player.rotationX)*/
-
-    /*if (PressedKeys["s"]) {
-        PlayerMatrix = webGLextra.m4.translate(PlayerMatrix, 0,0,0.2)
-        renderer.cameraMatrix = webGLextra.m4.translate(renderer.cameraMatrix,0,0,0.2)
-    }
-    if (PressedKeys["w"]) {
-        PlayerMatrix = webGLextra.m4.translate(PlayerMatrix, 0,0,-0.2)
-        renderer.cameraMatrix = webGLextra.m4.translate(renderer.cameraMatrix,0,0,-0.2)
-    }
-    if (PressedKeys["a"]) {
-        PlayerMatrix = webGLextra.m4.translate(PlayerMatrix,-0.2,0,0)
-        renderer.cameraMatrix = webGLextra.m4.translate(renderer.cameraMatrix,-0.2,0,0)
-    }
-    if (PressedKeys["d"]) {
-        PlayerMatrix = webGLextra.m4.translate(PlayerMatrix, 0.2,0,0)
-        renderer.cameraMatrix = webGLextra.m4.translate(renderer.cameraMatrix,0.2,0,0)
-    }
-    if (PressedKeys["ArrowLeft"]) {
-        renderer.cameraMatrix = webGLextra.m4.yRotate(renderer.cameraMatrix, degToRad(3))
-    }
-    if (PressedKeys["ArrowRight"]) {
-        renderer.cameraMatrix = webGLextra.m4.yRotate(renderer.cameraMatrix, degToRad(-3))
-    }
-    if (PressedKeys["ArrowUp"]) {
-        renderer.cameraMatrix = webGLextra.m4.xRotate(renderer.cameraMatrix, degToRad(3))
-    }
-    if (PressedKeys["ArrowDown"]) {
-        renderer.cameraMatrix = webGLextra.m4.xRotate(renderer.cameraMatrix, degToRad(-3))
-    }*/
+    let newDir = moveVectorForward([0,0],1,sunDirection)
+    //renderer.setDirectionalLightDirection([newDir[0],-1,newDir[1]])
+    //sunMesh.pos = [newDir[0] * sunDistance,0.8 * sunDistance,newDir[1] * sunDistance]
 
     //rendering
-    renderer.newFrame([0.258,0.529,0.960,1])
+    renderer.newFrame()
 
     //render meshes
     parasol.rotation[0] += 0.01
@@ -317,11 +250,19 @@ function tick() {
     smoothUvSphere.rotation[0] += 0.01
     smoothUvSphere.rotation[1] += 0.01
     smoothUvSphere.rotation[2] += 0.01
+    //concretePlane.pos[0] += 0.01
+    //pbrRockMesh.rotation[1] = pbrRockMesh.rotation[1] + 0.01 % degToRad(360)
 
     //hitboxes
     parasol.updateHitbox()
     flatCubeHitbox.calculateMeshBox()
     smoothCubeHitbox.calculateMeshBox()
+
+    pointLightTest.pos = SelfPlayer.pos
+    pointLightTest.update()
+
+    pointLightTest2.pos = SelfPlayer.pos
+    pointLightTest2.update()
 
     //performance test
     /*for (let i = 0; i < 10; i++) {
@@ -333,14 +274,14 @@ function tick() {
     }*/
     //flatCubeHitbox.visualizeMeshBox()
     //smoothCubeHitbox.visualizeMeshBox()
-    //ParasolHitbox.visualizeMeshBox()
+    //parasol.hitbox.visualizeMeshBox()
     
     //render meshes
     for (let i = 0; i < allMeshes.length; i++) {
         allMeshes[i].renderMesh()
     }
 
-    /*for (let i = 0; i < 40; i++) {
+    /*for (let i = 0; i < 50; i++) {
         ArtisansHub.renderMesh()
     }*/
     

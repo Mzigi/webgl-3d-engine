@@ -571,7 +571,16 @@ var webGLextra = {
             res[2] = mat[0*4+2]*x + mat[1*4+2]*y + mat[2*4+2]*z + mat[3*4+2]*w
             res[3] = mat[0*4+3]*x + mat[1*4+3]*y + mat[2*4+3]*z + mat[3*4+3]*w
             return res
-          }
+          },
+          subtractVectors: subtractVectors,
+          scaleVector: function scaleVector(v, s) {
+            let dst = [0,0,0]
+            dst[0] = v[0] * s;
+            dst[1] = v[1] * s;
+            dst[2] = v[2] * s;
+            return dst;
+          },
+          normalize: normalize,
       },
     meshBuilder: {
       createCube: function (size) {

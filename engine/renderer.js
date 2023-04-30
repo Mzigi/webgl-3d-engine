@@ -9,10 +9,15 @@ var program = null
 var positionAttributeLocation = null
 var texcoordAttributeLocation = null
 var normalAttributeLocation = null
+var tangentAttributeLocation = null
 
 var matrixUniformLocation = null
 var worldUniformLocation = null
+
 var textureUniformLocation = null
+let specularTextureUniformLocation = null
+let normalTextureUniformLocation = null
+var aoTextureUniformLocation = null
 
 var ambientLightUniformLocation = null
 var directionalLightColorUniformLocation = null
@@ -24,7 +29,7 @@ var textures = {}
 
 var lastTime = performance.now()
 
-function loadTexture(src,callback) {
+function loadTexture(src,filteringMode,callback) { //filteringMode: mipmap, linear, nearest
   let texture = gl.createTexture()
 
   gl.bindTexture(gl.TEXTURE_2D, texture)
@@ -36,7 +41,20 @@ function loadTexture(src,callback) {
   image.onload = function () {
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
-    gl.generateMipmap(gl.TEXTURE_2D)
+    if (filteringMode === "mipmap") {
+      gl.generateMipmap(gl.TEXTURE_2D)
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      if (filteringMode === "linear") {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      }
+    }
+
 
     if (callback) {
       callback()
@@ -68,11 +86,29 @@ async function loadMidnightMountain() {
 loadMidnightMountain()
 loadArtisans()*/
 
-function useTexture(src) {
+function useTexture(src, textureType) { //textureType: diffuse, specular, normal
   if (src == "portalTexture") {
     gl.bindTexture(gl.TEXTURE_2D, textures[src])
     gl.uniform1f(isPortalLocation, 1.0)
   } else {
+    switch(textureType) {
+      case "diffuse":
+        gl.activeTexture(gl.TEXTURE0)
+        break;
+      case "specular":
+        gl.activeTexture(gl.TEXTURE1)
+        break;
+      case "normal":
+        gl.activeTexture(gl.TEXTURE2)
+        break;
+      case "ao":
+        gl.activeTexture(gl.TEXTURE3)
+        break;
+      default:
+        console.log(src + " was missing textureType")
+        console.log(textureType)
+        gl.activeTexture(gl.TEXTURE0)
+    } 
     gl.uniform1f(isPortalLocation, 0.0)
     gl.bindTexture(gl.TEXTURE_2D, textures[src])
   }
@@ -102,6 +138,8 @@ globalTransform: [0,0,0],
 globalScale: [1,1,1],
 globalOriginOffset: [0,0,0],
 
+clearColor: [0,0,0,0],
+
 aspect: 1,
 portalScene: null,
 
@@ -127,74 +165,160 @@ init: function () {
   in vec4 a_position;
   in vec2 a_texcoord;
   in vec3 a_normal;
-
+  in vec3 a_tangent;
+  
   //u_matrix = u_worldViewProjection
   uniform mat4 u_matrix;
   uniform mat4 u_world;
-
+  
+  uniform vec3[16] u_pointPos; //point light
+  
   out vec2 v_texcoord;
   out vec3 v_normal;
-  out vec2 v_screenPos;
   out vec3 v_FragPos;
-
+  out vec3 v_tangent;
+  
+  out vec3[16] v_surfaceToLight; //point light
+  
   void main() {
       gl_Position = u_matrix * a_position;
-
-      v_screenPos = vec2(u_matrix * a_position);
-
+  
       v_texcoord = a_texcoord;
       v_normal = mat3(u_world) * a_normal;
-
+  
+      mat3 normalMat = mat3(u_world);
+      v_normal = normalize(normalMat * a_normal);
+      v_tangent = normalize(normalMat * a_tangent);
+  
       v_FragPos = vec3(a_position);
+  
+      //point light calculations
+      vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+  
+      for (int i = 0; i < 16; i++) {
+          v_surfaceToLight[i] = u_pointPos[i] - surfaceWorldPosition;
+      }
   }`
 
   let fragmentShaderSource = `#version 300 es
 
   precision highp float;
-
+  
   in vec2 v_texcoord;
   in vec3 v_normal;
-  in vec2 v_screenPos;
-  in vec3 v_FragPos;
-
+  in vec3 v_FragPos; //same as a_position
+  in vec3 v_tangent;
+  
+  //point light
+  in vec3[16] v_surfaceToLight;
+  
+  uniform float[16] u_pointShininess;
+  
   uniform sampler2D u_texture;
-
+  uniform sampler2D u_specularTexture;
+  uniform sampler2D u_normalTexture;
+  uniform sampler2D u_ao;
+  
+  /*
   uniform float u_isPortal;
   uniform vec2 u_resolution;
-
+  */
+  
   uniform vec3 u_ambientLight;
   uniform vec3 u_directionalLightColor;
   uniform vec3 u_directionalVector;
   uniform vec3 u_viewPos;
-
+  
   uniform float u_specularStrength;
   uniform float u_shininess;
-
+  
   out vec4 outColor;
-
+  
+  //directional light function
+  vec3 calculateDirLight(vec3 normal) {
+      float directionalLight = (dot(normal, u_directionalVector) + 0.5) / 2.0;
+      vec3 dirLight = (u_directionalLightColor * max(directionalLight, 0.0));
+      return dirLight;
+  }
+  
+  //specular light function
+  vec3 calculateSpecular(vec3 dirLight, vec3 normal, vec4 specularTexelColor) {
+      vec3 viewDir = normalize(u_viewPos - v_FragPos);
+      vec3 reflectDir = reflect(-dirLight, normal);  
+  
+      float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_shininess);
+      vec3 specular = u_specularStrength * spec * u_directionalLightColor * specularTexelColor.r;  
+      return specular;
+  }
+  
+  vec3 normalMapNormal(vec3 normal, vec3 textureNormalColor) {
+      textureNormalColor.r = 1.0-textureNormalColor.r;
+      //textureNormalColor.b = -textureNormalColor.b;
+  
+      vec3 tangent = normalize(v_tangent);
+      vec3 bitangent = normalize(cross(normal, tangent));
+      
+      mat3 tbn = mat3(tangent, bitangent, normal);
+      normal = textureNormalColor * 2. - 1.;
+      //normal.x = -normal.x;
+      //normal.z = -normal.z;
+      normal = normalize(tbn * normal);
+  
+      return normal;
+  }
+  
+  float calculatePointLights(vec3 normal) {
+    float totalLight = 1.0;
+  
+    for (int i = 0; i < 16; i++) {
+      vec3 surfaceToLightDirection = normalize(v_surfaceToLight[i]);
+      if (u_pointShininess[i] > 0.0) {
+        totalLight += dot(normal, surfaceToLightDirection);
+      }
+    }
+  
+    return totalLight;
+  }
+  
   void main() {
       vec3 normal = normalize(v_normal);
-      float directionalLight = (dot(normal, u_directionalVector) + 0.5) / 2.0;
+      normal = normalMapNormal(normal, texture(u_normalTexture, v_texcoord).rgb);
+  
+      //TEXTURES
       vec4 texelColor = texture(u_texture, v_texcoord);
+      vec4 specularTexelColor = texture(u_specularTexture, v_texcoord);
+  
+      /* unused
       if (u_isPortal > 0.5) {
         texelColor = texture(u_texture, gl_FragCoord.xy / u_resolution);
       }
-
-      vec3 dirLight = (u_directionalLightColor * max(directionalLight, 0.0));
-
-      vec3 viewDir = normalize(u_viewPos - v_FragPos);
-      vec3 reflectDir = reflect(-dirLight, normal);  
-      
-      float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_shininess);
-      vec3 specular = u_specularStrength * spec * u_directionalLightColor;  
-
-      vec3 lighting = u_ambientLight + dirLight + specular;
-
+      */
+  
+      //LIGHTING
+      vec3 dirLight = calculateDirLight(normal);
+      vec3 specular = calculateSpecular(dirLight, normal, specularTexelColor);
+      float aoMultiplier = texture(u_ao, v_texcoord).r;
+      float pointLight = calculatePointLights(normal);
+  
+      vec3 lighting = (u_ambientLight + dirLight * pointLight + specular) * aoMultiplier;
+      lighting.rgb *= pointLight;
+  
+      //TRANSPARENCY
+      if (texelColor.a == 0.0) {
+        discard;
+      }
+  
+      //FINISH
+      outColor = vec4(texelColor.rgb * lighting, texelColor.a);
+  
+  
+      /*
       if (u_isPortal < 0.5) {
         outColor = vec4(texelColor.rgb * lighting, texelColor.a);
       } else {
         outColor = vec4(texelColor.rgb, texelColor.a);
       }
+      */
   }`
 
   function createTextureAndUse(gl, src) {
@@ -225,12 +349,24 @@ init: function () {
   positionAttributeLocation = gl.getAttribLocation(program, "a_position")
   texcoordAttributeLocation = gl.getAttribLocation(program, "a_texcoord")
   normalAttributeLocation = gl.getAttribLocation(program, "a_normal")
+  tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent")
 
   matrixUniformLocation = gl.getUniformLocation(program, "u_matrix")
   worldUniformLocation = gl.getUniformLocation(program, "u_world")
-  textureUniformLocation = gl.getUniformLocation(program, "u_texture")
 
   resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
+
+  //texture locations
+  textureUniformLocation = gl.getUniformLocation(program, "u_texture")
+  specularTextureUniformLocation = gl.getUniformLocation(program, "u_specularTexture")
+  normalTextureUniformLocation = gl.getUniformLocation(program, "u_normalTexture")
+  aoTextureUniformLocation = gl.getUniformLocation(program, "u_ao")
+
+  gl.useProgram(program)
+  gl.uniform1i(textureUniformLocation, 0)
+  gl.uniform1i(specularTextureUniformLocation, 1)
+  gl.uniform1i(normalTextureUniformLocation, 2)
+  gl.uniform1i(aoTextureUniformLocation, 3)
 
   //directional lighting uniforms
   ambientLightUniformLocation = gl.getUniformLocation(program, "u_ambientLight")
@@ -239,6 +375,15 @@ init: function () {
   viewPosUniformLocation = gl.getUniformLocation(program, "u_viewPos")
   specularStrengthUniformLocation = gl.getUniformLocation(program, "u_specularStrength")
   shininessUniformLocation = gl.getUniformLocation(program, "u_shininess")
+
+  //point lighting uniform
+  pointLightShininessUniformLocation = gl.getUniformLocation(program, "u_pointShininess")
+  pointLightColorUniformLocation = gl.getUniformLocation(program, "u_pointColor")
+  pointLightSpecularColorUniformLocation = gl.getUniformLocation(program, "u_pointSpecularColor")
+  pointLightPosUniformLocation = gl.getUniformLocation(program, "u_pointPos")
+  pointLightAttenuationUniformLocation = gl.getUniformLocation(program, "u_pointAttenuation")
+
+  renderer.updatePointLightUniforms()
 
   //isPortal bool
   isPortalLocation = gl.getUniformLocation(program, "u_isPortal")
@@ -286,7 +431,7 @@ init: function () {
 },
 newFrame: function(clearColor) {
   if (clearColor == undefined) {
-    clearColor = [0,0,0,0]
+    clearColor = renderer.clearColor
   }
 
   webGLextra.resizeCanvas(gl, canvas)
@@ -309,7 +454,7 @@ newFrame: function(clearColor) {
 
   gl.bindVertexArray(vao)
 },
-drawGeometry: function(geometry, texcoords, normals) {
+drawGeometry: function(geometry, texcoords, normals, tangents) {
   gl.bindVertexArray(vao)
 
   //connect a_texcoord & ARRAY_BUFFER
@@ -341,6 +486,15 @@ drawGeometry: function(geometry, texcoords, normals) {
   gl.enableVertexAttribArray(normalAttributeLocation)
 
   gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, true, 0, 0)
+
+  //tangents
+  let tangentBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer)
+
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tangents), gl.STATIC_DRAW)
+  gl.enableVertexAttribArray(tangentAttributeLocation)
+
+  gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, true, 0, 0)
 
   //compute matrix
   let projectionMatrix = webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar)
@@ -392,6 +546,66 @@ setSpecularShininess: function(float) {
 setSpecularStrength: function(float) {
   gl.useProgram(program)
   gl.uniform1f(specularStrengthUniformLocation, float)
+},
+updatePointLightUniforms: function(allPointLights) {
+  gl.useProgram(program)
+
+  let pointLightColorArray = []
+  let pointLightPosArray = []
+  let pointLightShininessArray = []
+  let pointLightSpecularColorArray = []
+  let pointLightAttenuationArray = []
+
+  if (allPointLights) {
+    for (let i = 0; i < allPointLights; i++) { //color, pos, shininess, specular color
+      pointLightPosArray.push(allPointLights[i].pos[0])
+      pointLightPosArray.push(allPointLights[i].pos[1])
+      pointLightPosArray.push(allPointLights[i].pos[2])
+
+      pointLightColorArray.push(allPointLights[i].lightColor[0])
+      pointLightColorArray.push(allPointLights[i].lightColor[1])
+      pointLightColorArray.push(allPointLights[i].lightColor[2])
+
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[0])
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[1])
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[2])
+
+      pointLightAttenuationArray.push(allPointLights[i].linear)
+      pointLightAttenuationArray.push(allPointLights[i].quadratic)
+
+      pointLightShininessArray.push(allPointLights[i].brightness)
+    }
+  }
+
+  let lightsMissing = 16
+  if (allPointLights) {
+    lightsMissing = 16 - allPointLights.length
+  }
+  for (let i = 0; i < lightsMissing; i++) {
+    pointLightPosArray.push(99999)
+    pointLightPosArray.push(99999)
+    pointLightPosArray.push(99999)
+
+    pointLightColorArray.push(255)
+    pointLightColorArray.push(255)
+    pointLightColorArray.push(255)
+
+    pointLightSpecularColorArray.push(255)
+    pointLightSpecularColorArray.push(255)
+    pointLightSpecularColorArray.push(255)
+
+    pointLightAttenuationArray.push(0)
+    pointLightAttenuationArray.push(0)
+
+    pointLightShininessArray.push(0)
+  }
+
+  gl.useProgram(program)
+  gl.uniform3fv(pointLightPosUniformLocation, new Float32Array(pointLightPosArray))
+  gl.uniform3fv(pointLightColorUniformLocation, new Float32Array(pointLightColorArray))
+  gl.uniform3fv(pointLightSpecularColorUniformLocation, new Float32Array(pointLightSpecularColorArray))
+  gl.uniform2fv(pointLightAttenuationUniformLocation, new Float32Array(pointLightAttenuationArray))
+  gl.uniform1fv(pointLightShininessUniformLocation, new Float32Array(pointLightShininessArray))
 }
 }
 

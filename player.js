@@ -28,15 +28,19 @@ class Player {
         this.rotationX = 0
         this.rotationY = 0
         this.velocityY = 0
+        this.falling = true
 
+        //player stats
         this.walkSpeed = 12
         this.slopeHeight = 12
+        this.jumpPower = 0.3
 
+        //hitbox stuff
         let PlayerMaterial = new material("assets/textures/red.png")
 
         this.PlayerMesh = new mesh("assets/models/Player.obj", PlayerMaterial, pos)
-        this.PlayerMesh.visible = true
-        this.PlayerMesh.origin = [0,-1,0]
+        this.PlayerMesh.visible = false
+        this.PlayerMesh.origin = [0,-2,0]
         this.PlayerMesh.pos = [0,8,0]
 
         let PlayerHitbox = new hitbox("mesh")
@@ -74,21 +78,36 @@ class Player {
     getNewMovementPos(deltaTime) {
         let NewPlayerPos = [this.pos[0],this.pos[1],this.pos[2]]
 
+        let currentWalkSpeed = this.walkSpeed
+        let keysPressedCount = 0
+
         //controls
         if (isKeyPressed("s")) {
-            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -this.walkSpeed * deltaTime, this.rotationY + degToRad(90))
+            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -currentWalkSpeed * deltaTime, this.rotationY + degToRad(90))
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
+            keysPressedCount++
+        }
+        if (keysPressedCount > 0) {
+            currentWalkSpeed = Math.sqrt(this.walkSpeed*this.walkSpeed+this.walkSpeed*this.walkSpeed) / 2
         }
         if (isKeyPressed("w")) {
-            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], this.walkSpeed * deltaTime, this.rotationY + degToRad(90))
+            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], currentWalkSpeed * deltaTime, this.rotationY + degToRad(90))
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
+            keysPressedCount++
+        }
+        if (keysPressedCount > 0) {
+            currentWalkSpeed = Math.sqrt(this.walkSpeed*this.walkSpeed+this.walkSpeed*this.walkSpeed) / 2
         }
         if (isKeyPressed("a")) {
-            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -this.walkSpeed * deltaTime, this.rotationY)
+            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], -currentWalkSpeed * deltaTime, this.rotationY)
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
+            keysPressedCount++
+        }
+        if (keysPressedCount > 0) {
+            currentWalkSpeed = Math.sqrt(this.walkSpeed*this.walkSpeed+this.walkSpeed*this.walkSpeed) / 2
         }
         if (isKeyPressed("d")) {
-            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], this.walkSpeed * deltaTime, this.rotationY)
+            let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], currentWalkSpeed * deltaTime, this.rotationY)
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
         }
 
@@ -96,14 +115,51 @@ class Player {
     }
 
     tryMoveTo(pos) {
-        if (!this.collidesAt([pos[0],this.pos[1],this.pos[2]])) {
-            this.pos[0] = pos[0]
-        }
-        if (!this.collidesAt([this.pos[0],pos[1],pos[2]])) {
+        let moved = false
+
+        if (pos[1] && !this.collidesAt([this.pos[0],pos[1],this.pos[2]])) {
             this.pos[1] = pos[1]
+            moved = true
         }
-        if (!this.collidesAt([this.pos[0],this.pos[1],pos[2]])) {
+        if (pos[0] && !this.collidesAt([pos[0],this.pos[1],this.pos[2]])) {
+            this.pos[0] = pos[0]
+            moved = true
+        }
+        if (pos[2] && !this.collidesAt([this.pos[0],this.pos[1],pos[2]])) {
             this.pos[2] = pos[2]
+            moved = true
+        }
+
+        return moved
+    }
+
+    updateFalling(deltaTime, precision) {
+        this.velocityY = Math.max(this.velocityY - 1 * deltaTime,-1)
+        let fellDown = false
+        let moved = this.tryMoveTo([null,this.pos[1] + this.velocityY,null])
+        if (!moved) {
+            for (let i = 0; i < precision; i++) {
+                if (!this.tryMoveTo([null,this.pos[1] + this.velocityY / precision,null])) {
+                    i = precision
+                }
+            }
+            if (this.velocityY < -0.2) {
+                this.velocityY = -0.2
+            } else {
+                this.velocityY = -0.19
+            }
+        } else {
+            fellDown = true
+        }
+
+        this.falling = fellDown
+
+        return fellDown
+    }
+
+    jump() {
+        if (isKeyPressed(" ") && this.velocityY <= -0.2 && !this.falling) {
+            this.velocityY = this.jumpPower
         }
     }
 
@@ -114,7 +170,20 @@ class Player {
     tickUpdate(deltaTime) {
         this.updateRotation(deltaTime)
         let attemptPos = this.getNewMovementPos(deltaTime)
-        this.tryMoveTo(attemptPos)
+
+        let originalHeight = this.pos[1]
+        if (!this.tryMoveTo([attemptPos[0], null, null])) {
+            this.tryMoveTo([attemptPos[0], originalHeight + this.slopeHeight * deltaTime, null])
+        }
+
+        if (!this.tryMoveTo([null, null, attemptPos[2]])) {
+            this.tryMoveTo([null, originalHeight + this.slopeHeight * deltaTime, attemptPos[2]])
+        }
+        
+        if (!this.updateFalling(deltaTime,12)) {
+            this.jump()
+        }
         this.updateRendererCamera()
+        
     }
 }

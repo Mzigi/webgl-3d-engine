@@ -472,7 +472,7 @@ class hitbox {
             if (!renderer.textureExists("assets/textures/red.png")) {
                 renderer.loadTextureGLOBAL("assets/textures/red.png")
             }
-            renderer.drawGeometry(cubeVisualization.geometry,cubeVisualization.texcoord,"flat")
+            renderer.drawGeometry(cubeVisualization.geometry,cubeVisualization.texcoord,cubeVisualization.normals,cubeVisualization.tangent)
         }
     }
 
@@ -547,7 +547,7 @@ class hitbox {
         return intersecting
     }
 
-    frustumIntersects() {
+    frustumIntersects(precision) {
         if (this.minX) {
             let cameraPosition = webGLextra.m4.getTranslation(renderer.cameraMatrix)
             if (cameraPosition[0] >= this.minX && cameraPosition[0] <= this.maxX &&
