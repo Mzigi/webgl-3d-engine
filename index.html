@@ -12,6 +12,10 @@
     <input id="ambient" class="color" type="color" style="position:absolute; top:0; left:0;" hidden>
     <input id="directional" class="color" type="color" style="position:absolute; top:50px; left:0;" hidden>
 
+    <!--third party libraries
+    <script src="libraries/math.min.js"></script>-->
+
+    <!--engine-->
     <script src="engine/webGLextra.js"></script>
     <script src="engine/renderer.js"></script>
     <script src="engine/audio.js"></script>
@@ -22,5 +26,33 @@
     <!--non engine scripts-->
     <script src="player.js"></script>
     <script src="game.js"></script>
+
+    <!--
+      FEATURES:
+
+      3D Rendering Engine
+      * PBR (Physically Based Rendering)
+      * Point Lighting and Directional Lighting
+      * Shading
+      * Auto generate flat and smooth shading
+      * Parse .OBJ files and use them as meshes
+
+      First Person Player Movement
+      * Accurate collision with 3D environments
+      * Easily configurable
+
+      Collision Engine
+      * AABB Collision
+      * Triangle vs Triangle Intersection
+      * Frustum Check
+      * Hitbox class that can be "attached" to meshes
+
+      structure.js
+      * Adds material, mesh and point light classes
+      * Lets all the engines interact with eachother
+      * Call a single function to render a full mesh with PBR, lighting and optimization checks
+
+      Audio
+    -->
   </body>
 </html>

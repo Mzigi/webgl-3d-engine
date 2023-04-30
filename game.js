@@ -247,10 +247,7 @@ function tick() {
     //renderer.setDirectionalLightDirection([newDir[0],-1,newDir[1]])
     //sunMesh.pos = [newDir[0] * sunDistance,0.8 * sunDistance,newDir[1] * sunDistance]
 
-    //rendering
-    renderer.newFrame()
-
-    //render meshes
+    //move meshes
     parasol.rotation[0] += 0.01
     parasol.rotation[1] += 0.01
     parasol.rotation[2] += 0.01
@@ -281,7 +278,9 @@ function tick() {
     pointLightTest2.pos[1] = pointLightTest2.pos[1] - 0.01
     pointLightVisualization.pos = pointLightTest2.pos
     //pointLightTest2.pos = SelfPlayer.pos
-    pointLightTest2.update()
+    //pointLightTest2.update()
+
+    //rendering
 
     //performance test
     /*for (let i = 0; i < 10; i++) {
@@ -296,9 +295,21 @@ function tick() {
     //parasol.hitbox.visualizeMeshBox()
     
     //render meshes
+    renderer.perspective = true
+    renderer.isShadowMap = false
+    renderer.newFrame()
+    
     for (let i = 0; i < allMeshes.length; i++) {
         allMeshes[i].renderMesh()
     }
+
+    /*renderer.isShadowMap = true
+    renderer.perspective = false
+    renderer.newFrame()
+    
+    for (let i = 0; i < allMeshes.length; i++) {
+        allMeshes[i].renderMesh()
+    }*/
 
     /*for (let i = 0; i < 50; i++) {
         ArtisansHub.renderMesh()

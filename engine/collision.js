@@ -16,7 +16,7 @@ function getDistance(a,b) {
 
 function getViewProjectionMatrix() {
     //compute matrix
-    let projectionMatrix = webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar)
+    let projectionMatrix = renderer.perspective ? webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar) : webGLextra.m4.orthographic(-renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, -renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, renderer.zNear, renderer.zFar)
 
     let viewMatrix = webGLextra.m4.inverse(renderer.cameraMatrix)
     let viewProjectionMatrix = webGLextra.m4.multiply(projectionMatrix, viewMatrix)
@@ -547,7 +547,7 @@ class hitbox {
         return intersecting
     }
 
-    frustumIntersects(precision) {
+    frustumIntersects() {
         if (this.minX) {
             let cameraPosition = webGLextra.m4.getTranslation(renderer.cameraMatrix)
             if (cameraPosition[0] >= this.minX && cameraPosition[0] <= this.maxX &&

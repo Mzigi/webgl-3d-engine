@@ -245,8 +245,10 @@ class mesh {
             if (this.textureLink) {
                 renderer.useTextureGLOBAL(this.textureLink, "diffuse")
 
-                renderer.setSpecularStrength(0.1)
-                renderer.setSpecularShininess(8)
+                if (!renderer.isShadowMap) {
+                    renderer.setSpecularStrength(0.1)
+                    renderer.setSpecularShininess(8)
+                }
             } else {
                 this.material.useMaterial()
             }

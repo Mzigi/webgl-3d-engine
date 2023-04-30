@@ -33,12 +33,15 @@ var webGLextra = {
             return null
         }
     },
-    createProgram: function (gl, shaderList) {
+    createProgram: function (gl, shaderList, programAttribInfo) {
         let program = gl.createProgram()
 
         shaderList.forEach(function (shader) {
             gl.attachShader(program, shader)
         })
+        for (let i = 0; i < programAttribInfo.length; i++) {
+          gl.bindAttribLocation(program, programAttribInfo[i][1], programAttribInfo[i][0])
+        }
 
         gl.linkProgram(program)
         if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
@@ -223,8 +226,7 @@ var webGLextra = {
 
         normals.push(normalCombined[0],normalCombined[1],normalCombined[2])
       }
-
-      console.log(normals)
+      
       return normals
     },
     m3: {
@@ -304,6 +306,12 @@ var webGLextra = {
                 -1, 1, 1,
             ];
         },
+        getRotation: function getRotation(mat) {
+          let x = Math.atan2(mat[7],mat[8])
+          let y = Math.atan2(-mat[6], Math.sqrt(mat[7]*mat[7] + mat[8]*mat[8]))
+          let z = Math.atan2(mat[3],mat[0])
+          return [x,y,z]
+        }
     },
     m4: {
         translation: function(tx, ty, tz) {
@@ -450,6 +458,28 @@ var webGLextra = {
               0, 0, (near + far) * rangeInv, -1,
               0, 0, near * far * rangeInv * 2, 0,
             ];
+          },
+          orthographic: function orthographic(left, right, bottom, top, near, far, dst) {
+            dst = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        
+            dst[ 0] = 2 / (right - left);
+            dst[ 1] = 0;
+            dst[ 2] = 0;
+            dst[ 3] = 0;
+            dst[ 4] = 0;
+            dst[ 5] = 2 / (top - bottom);
+            dst[ 6] = 0;
+            dst[ 7] = 0;
+            dst[ 8] = 0;
+            dst[ 9] = 0;
+            dst[10] = 2 / (near - far);
+            dst[11] = 0;
+            dst[12] = (left + right) / (left - right);
+            dst[13] = (bottom + top) / (bottom - top);
+            dst[14] = (near + far) / (near - far);
+            dst[15] = 1;
+        
+            return dst;
           },
           inverse: function(m) {
             var m00 = m[0 * 4 + 0];
@@ -719,7 +749,7 @@ var webGLextra = {
               case "vn":
                 //console.log("vn")
                 //normal
-                normals.push([Number(lineSections[1]),Number(lineSections[2]),Number(lineSections[3])])
+                normals.push([-Number(lineSections[1]),-Number(lineSections[2]),-Number(lineSections[3])])
                 break;
               case "f":
                 //console.log("f")

@@ -9,6 +9,7 @@ var PressedKeys = {
     "ArrowDown": false,
     "ArrowLeft": false,
     " ": false,
+    "Shift": false,
 }
 
 document.body.onkeydown = function(e) {

@@ -39,7 +39,7 @@ class Player {
         let PlayerMaterial = new material("assets/textures/red.png")
 
         this.PlayerMesh = new mesh("assets/models/Player.obj", PlayerMaterial, pos)
-        this.PlayerMesh.visible = false
+        this.PlayerMesh.visible = true
         this.PlayerMesh.origin = [0,-2,0]
         this.PlayerMesh.pos = [0,8,0]
 
@@ -116,6 +116,13 @@ class Player {
             let newVec2 = moveVectorForward([NewPlayerPos[0],NewPlayerPos[2]], currentWalkSpeed * deltaTime, this.rotationY)
             NewPlayerPos = [newVec2[0],NewPlayerPos[1],newVec2[1]]
         }
+        /*if (isKeyPressed("Shift")) {
+            renderer.fov = 90
+            this.walkSpeed = 16
+        } else {
+            renderer.fov = 75
+            this.walkSpeed = 12
+        }*/
 
         if (NewPlayerPos[0] === this.pos[0] && NewPlayerPos[1] === this.pos[1] && NewPlayerPos[2] === this.pos[2]) {
             this.sounds.footsteps.stop()

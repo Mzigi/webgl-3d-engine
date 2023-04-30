@@ -5,6 +5,8 @@ var vertexShader = null
 var fragmentShader = null
 
 var program = null
+var shadowProgram = null
+var currentProgram = program
 
 var positionAttributeLocation = null
 var texcoordAttributeLocation = null
@@ -22,6 +24,8 @@ var aoTextureUniformLocation = null
 var ambientLightUniformLocation = null
 var directionalLightColorUniformLocation = null
 var directionalVectorUniformLocation = null
+
+var shadowMapFramebuffer = null
 
 var vao = null
 
@@ -132,6 +136,27 @@ function normalize(v) {
   }
 }
 
+/*function quatToRotMatrix(quat) {
+  const xyz = webGLextra.m4.normalize([quat[1],quat[2],quat[3]])
+
+  const w = quat[0]
+  const x = xyz[0]
+  const y = xyz[1]
+  const z = xyz[2]
+  let matrixArray = null
+  // Validate inputs
+  if (isNaN(w) | isNaN(x) | isNaN(y) | isNaN(z)) {
+    matrixArray = [[NaN, NaN, NaN], [NaN, NaN, NaN], [NaN, NaN, NaN]]
+  } else {
+    matrixArray = [
+      [1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w,
+      2 * x * y + 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * x * w,
+      2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x * x - 2 * y * y],
+    ]
+  }
+  return matrixArray
+}*/
+
 var renderer = {
 globalRotation: [0,0,0],
 globalTransform: [0,0,0],
@@ -139,9 +164,15 @@ globalScale: [1,1,1],
 globalOriginOffset: [0,0,0],
 
 clearColor: [0,0,0,0],
+directionalLightNormal: [0,0,0],
 
 aspect: 1,
 portalScene: null,
+shadowMapSize: 512,
+shadowDistance: 10,
+shadowMapMetersLength: 50,
+perspective: true,
+isShadowMap: false,
 
 zNear: 0.01,
 zFar: 1000,
@@ -296,7 +327,7 @@ init: function () {
       //specular
       vec3 viewDir = normalize(u_viewPos - v_FragPos);
       vec3 reflectDir = reflect(-lightDir, normal);
-      float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess);
+      float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess) * u_specularStrength;
       vec3 specular = u_pointSpecularColor[i] * spec;
   
       //attenuation
@@ -355,6 +386,25 @@ init: function () {
       */
   }`
 
+  let shadowVertexSource = `#version 300 es
+
+  in vec4 a_position;
+  
+  uniform mat4 u_matrix;
+  
+  void main() {
+      gl_Position = u_matrix * a_position;
+  }`
+
+  let shadowFragmentSource = `#version 300 es
+  precision highp float;
+  
+  out vec4 outColor;
+  
+  void main() {
+    outColor = vec4(0.0,0.0,0.0,0.0);
+  }`
+
   function createTextureAndUse(gl, src) {
     let texture = gl.createTexture()
 
@@ -377,56 +427,71 @@ init: function () {
   vertexShader = webGLextra.createShader(gl, vertexShaderSource, gl.VERTEX_SHADER)
   fragmentShader = webGLextra.createShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER)
 
-  program = webGLextra.createProgram(gl, [vertexShader, fragmentShader])
+  shadowVertexShader = webGLextra.createShader(gl, shadowVertexSource, gl.VERTEX_SHADER)
+  shadowFragmentShader = webGLextra.createShader(gl, shadowFragmentSource, gl.FRAGMENT_SHADER)
+
+  let programAttribInfo = [
+    ["a_position",0],
+    ["a_texcoord",1],
+    ["a_normal",2],
+    ["a_tangent",3]
+  ]
+
+  program = webGLextra.createProgram(gl, [vertexShader, fragmentShader], programAttribInfo)
+  currentProgram = program
+  shadowProgram = webGLextra.createProgram(gl, [shadowVertexShader, shadowFragmentShader], programAttribInfo)
+  
 
   //attribute for vertex data
-  positionAttributeLocation = gl.getAttribLocation(program, "a_position")
-  texcoordAttributeLocation = gl.getAttribLocation(program, "a_texcoord")
-  normalAttributeLocation = gl.getAttribLocation(program, "a_normal")
-  tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent")
+  positionAttributeLocation = gl.getAttribLocation(currentProgram, "a_position")
+  texcoordAttributeLocation = gl.getAttribLocation(currentProgram, "a_texcoord")
+  normalAttributeLocation = gl.getAttribLocation(currentProgram, "a_normal")
+  tangentAttributeLocation = gl.getAttribLocation(currentProgram, "a_tangent")
+  shadowPositionAttributeLocation = gl.getAttribLocation(currentProgram, "a_position")
 
-  matrixUniformLocation = gl.getUniformLocation(program, "u_matrix")
-  worldUniformLocation = gl.getUniformLocation(program, "u_world")
+  matrixUniformLocation = gl.getUniformLocation(currentProgram, "u_matrix")
+  shadowMatrixUniformLocation = gl.getUniformLocation(shadowProgram, "u_matrix")
+  worldUniformLocation = gl.getUniformLocation(currentProgram, "u_world")
 
-  resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
+  resolutionUniformLocation = gl.getUniformLocation(currentProgram, "u_resolution")
 
   //texture locations
-  textureUniformLocation = gl.getUniformLocation(program, "u_texture")
-  specularTextureUniformLocation = gl.getUniformLocation(program, "u_specularTexture")
-  normalTextureUniformLocation = gl.getUniformLocation(program, "u_normalTexture")
-  aoTextureUniformLocation = gl.getUniformLocation(program, "u_ao")
+  textureUniformLocation = gl.getUniformLocation(currentProgram, "u_texture")
+  specularTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_specularTexture")
+  normalTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_normalTexture")
+  aoTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_ao")
 
-  gl.useProgram(program)
+  gl.useProgram(currentProgram)
   gl.uniform1i(textureUniformLocation, 0)
   gl.uniform1i(specularTextureUniformLocation, 1)
   gl.uniform1i(normalTextureUniformLocation, 2)
   gl.uniform1i(aoTextureUniformLocation, 3)
 
   //directional lighting uniforms
-  ambientLightUniformLocation = gl.getUniformLocation(program, "u_ambientLight")
-  directionalLightColorUniformLocation = gl.getUniformLocation(program, "u_directionalLightColor")
-  directionalVectorUniformLocation = gl.getUniformLocation(program, "u_directionalVector")
-  viewPosUniformLocation = gl.getUniformLocation(program, "u_viewPos")
-  specularStrengthUniformLocation = gl.getUniformLocation(program, "u_specularStrength")
-  shininessUniformLocation = gl.getUniformLocation(program, "u_shininess")
+  ambientLightUniformLocation = gl.getUniformLocation(currentProgram, "u_ambientLight")
+  directionalLightColorUniformLocation = gl.getUniformLocation(currentProgram, "u_directionalLightColor")
+  directionalVectorUniformLocation = gl.getUniformLocation(currentProgram, "u_directionalVector")
+  viewPosUniformLocation = gl.getUniformLocation(currentProgram, "u_viewPos")
+  specularStrengthUniformLocation = gl.getUniformLocation(currentProgram, "u_specularStrength")
+  shininessUniformLocation = gl.getUniformLocation(currentProgram, "u_shininess")
 
   //point lighting uniform
-  pointLightShininessUniformLocation = gl.getUniformLocation(program, "u_pointShininess")
-  pointLightColorUniformLocation = gl.getUniformLocation(program, "u_pointColor")
-  pointLightSpecularColorUniformLocation = gl.getUniformLocation(program, "u_pointSpecularColor")
-  pointLightPosUniformLocation = gl.getUniformLocation(program, "u_pointPos")
-  pointLightAttenuationUniformLocation = gl.getUniformLocation(program, "u_pointAttenuation")
+  pointLightShininessUniformLocation = gl.getUniformLocation(currentProgram, "u_pointShininess")
+  pointLightColorUniformLocation = gl.getUniformLocation(currentProgram, "u_pointColor")
+  pointLightSpecularColorUniformLocation = gl.getUniformLocation(currentProgram, "u_pointSpecularColor")
+  pointLightPosUniformLocation = gl.getUniformLocation(currentProgram, "u_pointPos")
+  pointLightAttenuationUniformLocation = gl.getUniformLocation(currentProgram, "u_pointAttenuation")
 
   renderer.updatePointLightUniforms()
 
   //isPortal bool
-  isPortalLocation = gl.getUniformLocation(program, "u_isPortal")
+  isPortalLocation = gl.getUniformLocation(currentProgram, "u_isPortal")
 
   //vertex array object
   vao = gl.createVertexArray()
   gl.bindVertexArray(vao)
 
-  //portal texture
+  //PORTAL TEXTURE (UNUSED)
   textures["portalTexture"] = gl.createTexture()
   gl.bindTexture(gl.TEXTURE_2D, textures["portalTexture"])
 
@@ -462,76 +527,131 @@ init: function () {
   // attach the depth texture to the framebuffer
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, textures["portalDepthTexture"], 0);
 
+  //SHADOWMAP
+  var shadowMapTexture = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, shadowMapTexture)
+
+  //depth buffer configuration
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, renderer.shadowMapSize, renderer.shadowMapSize, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null)
+
+  // set the filtering so we don't need mips (probably wont work anyway)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+  //create framebuffer for rendering to it
+  var shadowMapFramebuffer = gl.createFramebuffer()
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowMapFramebuffer)
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadowMapTexture, 0)
 },
 newFrame: function(clearColor) {
   if (clearColor == undefined) {
     clearColor = renderer.clearColor
   }
+  
+  if (renderer.isShadowMap) {
+    clearColor = [1,1,1,1]
+
+    currentProgram = shadowProgram
+    
+    let cameraPosNormal = [
+      renderer.directionalLightNormal[0] * -renderer.shadowDistance,
+      renderer.directionalLightNormal[1] * -renderer.shadowDistance,
+      renderer.directionalLightNormal[2] * -renderer.shadowDistance]
+    let lookAtNormal = [
+      renderer.directionalLightNormal[0] * renderer.shadowDistance,
+      renderer.directionalLightNormal[1] * renderer.shadowDistance,
+      renderer.directionalLightNormal[2] * renderer.shadowDistance]
+    renderer.cameraMatrix = webGLextra.m4.lookAt(cameraPosNormal, renderer.directionalLightNormal, [0,1,0])
+  } else {
+    currentProgram = program
+  }
+
+  gl.useProgram(currentProgram)
 
   webGLextra.resizeCanvas(gl, canvas)
 
   renderer.aspect = canvas.clientWidth / canvas.clientHeight
 
-  gl.useProgram(program)
-
-  gl.uniform2f(resolutionUniformLocation, canvas.clientWidth, canvas.clientHeight)
-  gl.uniform3fv(viewPosUniformLocation, webGLextra.m4.getTranslation(this.cameraMatrix))
+  if (!this.isShadowMap) {
+    gl.uniform2f(resolutionUniformLocation, canvas.clientWidth, canvas.clientHeight)
+    gl.uniform3fv(viewPosUniformLocation, webGLextra.m4.getTranslation(this.cameraMatrix))
+  }
 
   gl.enable(gl.CULL_FACE)
   gl.enable(gl.DEPTH_TEST)
 
+  if (!this.isShadowMap) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    gl.viewport(0,0,canvas.clientWidth,canvas.clientHeight)
+  } else {
+    gl.bindFramebuffer(gl.FRAGMENTBUFFER, shadowMapFramebuffer)
+    gl.viewport(0,0,renderer.shadowMapSize,renderer.shadowMapSize)
+  }
+  
   gl.clearColor(clearColor[0],clearColor[1],clearColor[2],clearColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-  gl.viewport(0,0,canvas.clientWidth,canvas.clientHeight)
 
   gl.bindVertexArray(vao)
 },
 drawGeometry: function(geometry, texcoords, normals, tangents) {
   gl.bindVertexArray(vao)
 
-  //connect a_texcoord & ARRAY_BUFFER
-  let texcoordBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer)
+  if (!this.isShadowMap) {
+    //connect a_position & ARRAY_BUFFER
+    let positionBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
 
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW)
+    //buffer geometry
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geometry), gl.STATIC_DRAW)
+    gl.enableVertexAttribArray(positionAttributeLocation)
 
-  //texcoord vertex attribute
-  gl.enableVertexAttribArray(texcoordAttributeLocation)
-  gl.vertexAttribPointer(texcoordAttributeLocation, 2, gl.FLOAT, true, 0, 0)
+    //vertextAttribPointer binds ARRAY_BUFFER to the position attribute
+    gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0) //attribute location, size, type, normalize, stride, offset
 
-  //connect a_position & ARRAY_BUFFER
-  let positionBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+    //connect a_texcoord & ARRAY_BUFFER
+    let texcoordBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer)
 
-  //buffer geometry
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geometry), gl.STATIC_DRAW)
-  gl.enableVertexAttribArray(positionAttributeLocation)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW)
 
-  //vertextAttribPointer binds ARRAY_BUFFER to the position attribute
-  gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0) //attribute location, size, type, normalize, stride, offset
+    //texcoord vertex attribute
+    gl.enableVertexAttribArray(texcoordAttributeLocation)
+    gl.vertexAttribPointer(texcoordAttributeLocation, 2, gl.FLOAT, true, 0, 0)
 
-  //normals
-  let normalBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
+    //normals
+    let normalBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
 
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW)
-  gl.enableVertexAttribArray(normalAttributeLocation)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW)
+    gl.enableVertexAttribArray(normalAttributeLocation)
 
-  gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, true, 0, 0)
+    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, true, 0, 0)
 
-  //tangents
-  let tangentBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer)
+    //tangents
+    let tangentBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer)
 
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tangents), gl.STATIC_DRAW)
-  gl.enableVertexAttribArray(tangentAttributeLocation)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tangents), gl.STATIC_DRAW)
+    gl.enableVertexAttribArray(tangentAttributeLocation)
 
-  gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, true, 0, 0)
+    gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, true, 0, 0)
+  } else {
+    //connect a_position & ARRAY_BUFFER
+    let positionBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+
+    //buffer geometry
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geometry), gl.STATIC_DRAW)
+    gl.enableVertexAttribArray(shadowPositionAttributeLocation)
+
+    //vertextAttribPointer binds ARRAY_BUFFER to the position attribute
+    gl.vertexAttribPointer(shadowPositionAttributeLocation, 3, gl.FLOAT, false, 0, 0) //attribute location, size, type, normalize, stride, offset
+  }
 
   //compute matrix
-  let projectionMatrix = webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar)
+  let projectionMatrix = renderer.perspective ? webGLextra.m4.perspective(degToRad(renderer.fov), renderer.aspect, renderer.zNear, renderer.zFar) : webGLextra.m4.orthographic(-renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, -renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, renderer.zNear, renderer.zFar)
 
   let viewMatrix = webGLextra.m4.inverse(renderer.cameraMatrix)
   let viewProjectionMatrix = webGLextra.m4.multiply(projectionMatrix, viewMatrix)
@@ -547,8 +667,12 @@ drawGeometry: function(geometry, texcoords, normals, tangents) {
   worldMatrix = webGLextra.m4.yRotate(worldMatrix, renderer.globalRotation[1])
   worldMatrix = webGLextra.m4.zRotate(worldMatrix, renderer.globalRotation[2])
 
-  gl.uniformMatrix4fv(matrixUniformLocation, false, viewProjectionMatrix)
-  gl.uniformMatrix4fv(worldUniformLocation, false, worldMatrix)
+  if (!this.isShadowMap) {
+    gl.uniformMatrix4fv(matrixUniformLocation, false, viewProjectionMatrix)
+    gl.uniformMatrix4fv(worldUniformLocation, false, worldMatrix)
+  } else {
+    gl.uniformMatrix4fv(shadowMatrixUniformLocation, false, viewProjectionMatrix)
+  }
 
   gl.drawArrays(gl.TRIANGLES, 0, geometry.length / 3)
 },
@@ -572,6 +696,7 @@ setDirectionalLightColor: function(rgb) {
 setDirectionalLightDirection: function(vec3) {
   gl.useProgram(program)
   gl.uniform3fv(directionalVectorUniformLocation, vec3)
+  renderer.directionalLightNormal = vec3
 },
 setSpecularShininess: function(float) {
   gl.useProgram(program)

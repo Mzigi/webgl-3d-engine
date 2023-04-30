@@ -94,7 +94,7 @@ vec3 calculatePointLights(vec3 normal) {
     //specular
     vec3 viewDir = normalize(u_viewPos - v_FragPos);
     vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess);
+    float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess) * u_specularStrength;
     vec3 specular = u_pointSpecularColor[i] * spec;
 
     //attenuation
