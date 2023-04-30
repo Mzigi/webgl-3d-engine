@@ -10,7 +10,9 @@ in vec3 v_tangent;
 //point light
 in vec3[16] v_surfaceToLight;
 
-uniform float[16] u_pointShininess;
+uniform vec3[16] u_pointColor;
+uniform vec3[16] u_pointSpecularColor;
+uniform vec2[16] u_pointAttenuation;
 
 uniform sampler2D u_texture;
 uniform sampler2D u_specularTexture;
@@ -78,6 +80,39 @@ vec3 normalMapNormal(vec3 normal, vec3 textureNormalColor) {
   return totalLight;
 }*/
 
+vec3 calculatePointLights(vec3 normal) {
+  vec3 totalLight = vec3(0.0,0.0,0.0);
+
+  vec3 ambient = vec3(1.0,1.0,1.0);
+
+  for (int i = 0; i < 16; i++) {
+    //diffuse/lightcolor
+    vec3 lightDir = normalize(v_surfaceToLight[i]);
+    float diff = max(dot(normal, lightDir) * -1.0,0.0);
+    vec3 diffuse = u_pointColor[i] * diff;
+
+    //specular
+    vec3 viewDir = normalize(u_viewPos - v_FragPos);
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess);
+    vec3 specular = u_pointSpecularColor[i] * spec;
+
+    //attenuation
+    float distance = length(v_surfaceToLight[i]);
+    float attenuation = 1.0 / (1.0 + u_pointAttenuation[i].x * distance + u_pointAttenuation[i].y * (distance * distance));
+
+    diffuse *= attenuation;
+    specular *= attenuation;
+
+    vec3 result = ambient * attenuation + diffuse + specular;
+    if (u_pointAttenuation[i].x > 0.0) {
+      totalLight += result;
+    }
+  }
+
+  return totalLight;
+}
+
 void main() {
     vec3 normal = normalize(v_normal);
     normal = normalMapNormal(normal, texture(u_normalTexture, v_texcoord).rgb);
@@ -95,9 +130,10 @@ void main() {
     //LIGHTING
     vec3 dirLight = calculateDirLight(normal);
     vec3 specular = calculateSpecular(dirLight, normal, specularTexelColor);
+    vec3 pointLights = calculatePointLights(normal);
     float aoMultiplier = texture(u_ao, v_texcoord).r;
 
-    vec3 lighting = (u_ambientLight + dirLight + specular) * aoMultiplier;
+    vec3 lighting = (u_ambientLight + dirLight + specular + pointLights) * aoMultiplier;
 
     //TRANSPARENCY
     if (texelColor.a == 0.0) {

@@ -212,7 +212,9 @@ init: function () {
   //point light
   in vec3[16] v_surfaceToLight;
   
-  uniform float[16] u_pointShininess;
+  uniform vec3[16] u_pointColor;
+  uniform vec3[16] u_pointSpecularColor;
+  uniform vec2[16] u_pointAttenuation;
   
   uniform sampler2D u_texture;
   uniform sampler2D u_specularTexture;
@@ -267,13 +269,46 @@ init: function () {
       return normal;
   }
   
-  float calculatePointLights(vec3 normal) {
+  /*float calculatePointLights(vec3 normal) {
     float totalLight = 1.0;
   
     for (int i = 0; i < 16; i++) {
       vec3 surfaceToLightDirection = normalize(v_surfaceToLight[i]);
       if (u_pointShininess[i] > 0.0) {
         totalLight += dot(normal, surfaceToLightDirection);
+      }
+    }
+  
+    return totalLight;
+  }*/
+  
+  vec3 calculatePointLights(vec3 normal) {
+    vec3 totalLight = vec3(0.0,0.0,0.0);
+  
+    vec3 ambient = vec3(1.0,1.0,1.0);
+  
+    for (int i = 0; i < 16; i++) {
+      //diffuse/lightcolor
+      vec3 lightDir = normalize(v_surfaceToLight[i]);
+      float diff = max(dot(normal, lightDir) * -1.0,0.0);
+      vec3 diffuse = u_pointColor[i] * diff;
+  
+      //specular
+      vec3 viewDir = normalize(u_viewPos - v_FragPos);
+      vec3 reflectDir = reflect(-lightDir, normal);
+      float spec = pow(max(dot(viewDir,reflectDir),0.0), u_shininess);
+      vec3 specular = u_pointSpecularColor[i] * spec;
+  
+      //attenuation
+      float distance = length(v_surfaceToLight[i]);
+      float attenuation = 1.0 / (1.0 + u_pointAttenuation[i].x * distance + u_pointAttenuation[i].y * (distance * distance));
+  
+      diffuse *= attenuation;
+      specular *= attenuation;
+  
+      vec3 result = ambient * attenuation + diffuse + specular;
+      if (u_pointAttenuation[i].x > 0.0) {
+        totalLight += result;
       }
     }
   
@@ -297,11 +332,10 @@ init: function () {
       //LIGHTING
       vec3 dirLight = calculateDirLight(normal);
       vec3 specular = calculateSpecular(dirLight, normal, specularTexelColor);
+      vec3 pointLights = calculatePointLights(normal);
       float aoMultiplier = texture(u_ao, v_texcoord).r;
-      float pointLight = calculatePointLights(normal);
   
-      vec3 lighting = (u_ambientLight + dirLight * pointLight + specular) * aoMultiplier;
-      lighting.rgb *= pointLight;
+      vec3 lighting = (u_ambientLight + dirLight + specular + pointLights) * aoMultiplier;
   
       //TRANSPARENCY
       if (texelColor.a == 0.0) {
@@ -557,18 +591,18 @@ updatePointLightUniforms: function(allPointLights) {
   let pointLightAttenuationArray = []
 
   if (allPointLights) {
-    for (let i = 0; i < allPointLights; i++) { //color, pos, shininess, specular color
+    for (let i = 0; i < allPointLights.length; i++) { //color, pos, shininess, specular color
       pointLightPosArray.push(allPointLights[i].pos[0])
       pointLightPosArray.push(allPointLights[i].pos[1])
       pointLightPosArray.push(allPointLights[i].pos[2])
 
-      pointLightColorArray.push(allPointLights[i].lightColor[0])
-      pointLightColorArray.push(allPointLights[i].lightColor[1])
-      pointLightColorArray.push(allPointLights[i].lightColor[2])
+      pointLightColorArray.push(allPointLights[i].lightColor[0] / 255)
+      pointLightColorArray.push(allPointLights[i].lightColor[1] / 255)
+      pointLightColorArray.push(allPointLights[i].lightColor[2] / 255)
 
-      pointLightSpecularColorArray.push(allPointLights[i].specularColor[0])
-      pointLightSpecularColorArray.push(allPointLights[i].specularColor[1])
-      pointLightSpecularColorArray.push(allPointLights[i].specularColor[2])
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[0] / 255)
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[1] / 255)
+      pointLightSpecularColorArray.push(allPointLights[i].specularColor[2] / 255)
 
       pointLightAttenuationArray.push(allPointLights[i].linear)
       pointLightAttenuationArray.push(allPointLights[i].quadratic)
@@ -586,13 +620,13 @@ updatePointLightUniforms: function(allPointLights) {
     pointLightPosArray.push(99999)
     pointLightPosArray.push(99999)
 
-    pointLightColorArray.push(255)
-    pointLightColorArray.push(255)
-    pointLightColorArray.push(255)
+    pointLightColorArray.push(255 / 255)
+    pointLightColorArray.push(255 / 255)
+    pointLightColorArray.push(255 / 255)
 
-    pointLightSpecularColorArray.push(255)
-    pointLightSpecularColorArray.push(255)
-    pointLightSpecularColorArray.push(255)
+    pointLightSpecularColorArray.push(255 / 255)
+    pointLightSpecularColorArray.push(255 / 255)
+    pointLightSpecularColorArray.push(255 / 255)
 
     pointLightAttenuationArray.push(0)
     pointLightAttenuationArray.push(0)

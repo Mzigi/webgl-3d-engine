@@ -80,23 +80,35 @@ function updateClosestPointLights() { //returns max 16 point lights
 class pointLight {
     constructor(pos, brightness) {
         this.pos = pos
-        this.brightness = brightness
-        this.lightColor = [1,1,1]
-        this.specularColor = [1,1,1]
+        if (!brightness) {
+            brightness = 1
+        }
+        this.lightColor = [255 * brightness,255 * brightness,255 * brightness]
+        this.specularColor = [255 * brightness,255 * brightness,255 * brightness]
 
         //https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
-        this.linear = 0.7
-        this.quadratic = 1.8
+        //20% of the distance is most bright
+        this.linear = 0.045 //0.7
+        this.quadratic = 0.0075 //1.8
 
         allPointLights.push(this)
 
         updateClosestPointLights()
-        renderer.updatePointLightUniforms()
+        let tempAllPointLights = []
+        for (let i = 0; i < allPointLights.length; i++) {
+            tempAllPointLights.push(allPointLights[i])
+        }
+        renderer.updatePointLightUniforms(tempAllPointLights)
     }
 
     update() {
         updateClosestPointLights()
-        renderer.updatePointLightUniforms()
+
+        let tempAllPointLights = []
+        for (let i = 0; i < allPointLights.length; i++) {
+            tempAllPointLights.push(allPointLights[i])
+        }
+        renderer.updatePointLightUniforms(tempAllPointLights)
     }
 
     delete() {
