@@ -164,8 +164,8 @@ pbrRockMaterial.specularStrength = 4
 pbrRockMaterial.filteringMode = "nearest"
 pbrRockMaterial.loadTextures()
 
-let pbrRockMesh = new mesh("assets/models/plane.obj", pbrRockMaterial, [0,0,-4])
-pbrRockMesh.buildNormals("flat")
+/*let pbrRockMesh = new mesh("assets/models/plane.obj", pbrRockMaterial, [0,0,-4])
+pbrRockMesh.buildNormals("flat")*/
 
 //pbr concrete
 let concreteMaterial = new material("assets/textures/concrete_diffuse.jpg")
@@ -176,14 +176,30 @@ concreteMaterial.specularShininess = 8
 concreteMaterial.specularStrength = 0.5
 concreteMaterial.loadTextures()
 
+let rockMaterial = new material("assets/textures/rock_diffuse.jpg")
+rockMaterial.normal = "assets/textures/rock_normal.jpg"
+rockMaterial.specular = "assets/textures/rock_specular.jpg"
+rockMaterial.ao = "assets/textures/rock_ao.jpg"
+rockMaterial.specularShininess = 8
+rockMaterial.specularStrength = 0.5
+rockMaterial.loadTextures()
+
+
 let concretePlane = new mesh("assets/models/subdividedPlane.obj", concreteMaterial, [0,0,0])
 concretePlane.scale = [1,1,1]
 concretePlane.buildNormals("flat")
 concretePlane.attachHitbox(new hitbox("box"))
 concretePlane.updateHitbox()
 
-let pointLightTest = new pointLight([0,5,0],1000,3200000)
-let pointLightTest2 = new pointLight([0,5,0],10,1)
+//let pointLightTest = new pointLight([0,5,0],1000,3200000)
+let pointLightTest2 = new pointLight([0.5,10,-3.5],1)
+pointLightTest2.linear = 0.07
+pointLightTest2.quadratic = 0.017
+
+pointLightTest2.update()
+
+let pointLightVisualization = new mesh("assets/models/ico-sphere.obj", concreteMaterial, [0.5,10,-3.5])
+pointLightVisualization.scale = [0.1,0.1,0.1]
 
 //sun visualization
 /*let sunMaterial = new material("assets/textures/red.png")
@@ -258,10 +274,13 @@ function tick() {
     flatCubeHitbox.calculateMeshBox()
     smoothCubeHitbox.calculateMeshBox()
 
-    pointLightTest.pos = SelfPlayer.pos
-    pointLightTest.update()
+    //pointLightTest.pos = SelfPlayer.pos
+    //pointLightTest.update()
 
-    pointLightTest2.pos = SelfPlayer.pos
+    //pointLightTest2.pos = SelfPlayer.pos
+    pointLightTest2.pos[1] = pointLightTest2.pos[1] - 0.01
+    pointLightVisualization.pos = pointLightTest2.pos
+    //pointLightTest2.pos = SelfPlayer.pos
     pointLightTest2.update()
 
     //performance test
