@@ -558,6 +558,20 @@ class hitbox {
 
             let vpm = getViewProjectionMatrix(this)
 
+            //behind check
+            let xDiff = this.maxX - this.minX
+            let yDiff = this.maxY - this.minY
+            let zDiff = this.maxZ - this.minZ
+            let MIDDLE = getScreenPos(this.minX + xDiff/2,this.minY + yDiff/2,this.minZ + zDiff/2,vpm)
+            if (MIDDLE[2] < -Math.max(this.maxX,this.maxY,this.maxZ)) {
+                return false
+            }
+
+            if (isScreenPosOnScreen(MIDDLE)) {
+                return true
+            }
+
+            //cheap checks
             let PXPYPZ = getScreenPos(this.maxX,this.maxY,this.maxZ,vpm)
             if (isScreenPosOnScreen(PXPYPZ)) {
                 return true
@@ -590,13 +604,18 @@ class hitbox {
             if (isScreenPosOnScreen(PXNYNZ)) {
                 return true
             }
-            let xDiff = this.maxX - this.minX
-            let yDiff = this.maxY - this.minY
-            let zDiff = this.maxZ - this.minZ
-            let MIDDLE = getScreenPos(this.minX + xDiff/2,this.minY + yDiff/2,this.minZ + zDiff/2,vpm)
-            if (isScreenPosOnScreen(MIDDLE)) {
-                return true
+
+            //per meter check
+            for (let x = this.minX; x < this.maxX + 1; x++) {
+                for (let y = this.minY; y < this.maxY + 1; y++) {
+                    for (let z = this.minZ; z < this.maxZ + 1; z++) {
+                        if (isScreenPosOnScreen(getScreenPos(x,y,z,vpm))) {
+                            return true
+                        }
+                    }
+                }
             }
+
             return false
 
             /*let minPos = webGLextra.m4.multiplyWith(vpm, [this.minX,this.minY,this.minZ],1)
