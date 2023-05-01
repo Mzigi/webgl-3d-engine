@@ -176,6 +176,15 @@ concreteMaterial.specularShininess = 8
 concreteMaterial.specularStrength = 0.5
 concreteMaterial.loadTextures()
 
+let pixelConcreteMaterial = new material("assets/textures/concretePixel_diffuse.png")
+pixelConcreteMaterial.normal = "assets/textures/concretePixel_normal.png"
+/*concreteMaterial.specular = "assets/textures/concrete_specular.jpg"
+concreteMaterial.ao = "assets/textures/concrete_ao.jpg"*/
+pixelConcreteMaterial.specularShininess = 8
+pixelConcreteMaterial.specularStrength = 0.5
+pixelConcreteMaterial.filteringMode = "nearest"
+pixelConcreteMaterial.loadTextures()
+
 let rockMaterial = new material("assets/textures/rock_diffuse.jpg")
 rockMaterial.normal = "assets/textures/rock_normal.jpg"
 rockMaterial.specular = "assets/textures/rock_specular.jpg"
@@ -302,6 +311,8 @@ function tick() {
         for (let i = 0; i < allMeshes.length; i++) {
             allMeshes[i].renderMesh()
         }
+    } else if (!renderer.shadowsEnabled) {
+        renderer.lastShadowRenderCameraMatrix = webGLextra.m4.translation(999999,0,999999)
     }
 
     SelfPlayer.tickUpdate(deltaTime)
