@@ -89,7 +89,7 @@ let FPSCounter = 0
 //lighting
 renderer.setAmbientLightColor([0.23,0.23,0.26])
 renderer.setDirectionalLightColor([0.9,0.9,0.9])
-renderer.setDirectionalLightDirection([-0.2,-0.6,-0.25])
+renderer.setDirectionalLightDirection([-0.2,-1,-0.25])
 renderer.clearColor = [0.258,0.529,0.960,1]
 
 //test mesh
@@ -192,7 +192,7 @@ concretePlane.attachHitbox(new hitbox("box"))
 concretePlane.updateHitbox()
 
 //let pointLightTest = new pointLight([0,5,0],1000,3200000)
-let pointLightTest2 = new pointLight([0.5,10,-3.5],1)
+let pointLightTest2 = new pointLight([0.5,1000,-3.5],1)
 pointLightTest2.linear = 0.07
 pointLightTest2.quadratic = 0.017
 
