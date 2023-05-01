@@ -26,6 +26,7 @@ var directionalLightColorUniformLocation = null
 var directionalVectorUniformLocation = null
 
 var shadowMapFramebuffer = null
+var shadowMapTexture = null
 
 var vao = null
 
@@ -68,6 +69,31 @@ function loadTexture(src,filteringMode,callback) { //filteringMode: mipmap, line
   textures[src] = texture
 }
 
+function getShadowWorldMatrix() {
+  let cameraTranslation = webGLextra.m4.getTranslation(renderer.lastShadowRenderCameraMatrix)
+  cameraTranslation[0] = Math.floor(cameraTranslation[0])
+  cameraTranslation[1] = 0
+  cameraTranslation[2] = Math.floor(cameraTranslation[2])
+  
+  let cameraPosNormal = [
+    renderer.directionalLightNormal[0] * -renderer.shadowDistance,
+    renderer.directionalLightNormal[1] * -renderer.shadowDistance,
+    renderer.directionalLightNormal[2] * -renderer.shadowDistance]
+  let lookAtNormal = [
+    renderer.directionalLightNormal[0] * renderer.shadowDistance,
+    renderer.directionalLightNormal[1] * renderer.shadowDistance,
+    renderer.directionalLightNormal[2] * renderer.shadowDistance]
+
+  cameraPosNormal = webGLextra.m4.addVectors(cameraPosNormal, cameraTranslation)
+  lookAtNormal = webGLextra.m4.addVectors(lookAtNormal, cameraTranslation)
+  let shadowWorldMatrix = webGLextra.m4.lookAt(cameraPosNormal, lookAtNormal, [0,1,0])
+  //shadowWorldMatrix = webGLextra.m4.translate(shadowWorldMatrix, Math.floor(cameraTranslation[0]), 0, Math.floor(cameraTranslation[2]))
+  
+  //shadowWorldMatrix = webGLextra.m4.translate(shadowWorldMatrix, cameraTranslation[0],cameraTranslation[1],cameraTranslation[2])
+
+  return shadowWorldMatrix
+}
+
 /*let artisans = {"geometry": [0,0,0,1,0,0,0,1,0], "texcoord": [0,0,0,0,0,0], "normals": [0,1,0,0,1,0,0,1,0]}
 let midnightMountain = {"geometry": [0,0,0,1,0,0,0,1,0], "texcoord": [0,0,0,0,0,0], "normals": [0,1,0,0,1,0,0,1,0]}
 
@@ -91,7 +117,10 @@ loadMidnightMountain()
 loadArtisans()*/
 
 function useTexture(src, textureType) { //textureType: diffuse, specular, normal
-  if (src == "portalTexture") {
+  if (src === "shadowMapTexture") {
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, shadowMapTexture)
+  } else if (src === "portalTexture") {
     gl.bindTexture(gl.TEXTURE_2D, textures[src])
     gl.uniform1f(isPortalLocation, 1.0)
   } else {
@@ -168,18 +197,20 @@ directionalLightNormal: [0,0,0],
 
 aspect: 1,
 portalScene: null,
-shadowMapSize: 512,
-shadowDistance: 10,
-shadowMapMetersLength: 50,
+shadowMapSize: 1056,
+shadowDistance: 256,
+shadowMapMetersLength: 96,
 perspective: true,
 isShadowMap: false,
+shadowsEnabled: true,
 
 zNear: 0.01,
-zFar: 1000,
+zFar: 500,
 
 fov: 75,
 
 cameraMatrix: webGLextra.m4.translation(0,0,0),
+lastShadowRenderCameraMatrix: webGLextra.m4.translation(0,0,0),
 
 //functions
 init: function () {
@@ -201,6 +232,8 @@ init: function () {
   //u_matrix = u_worldViewProjection
   uniform mat4 u_matrix;
   uniform mat4 u_world;
+  uniform mat4 u_realWorld;
+  uniform mat4 u_textureMatrix;
   
   uniform vec3[16] u_pointPos; //point light
   
@@ -208,6 +241,7 @@ init: function () {
   out vec3 v_normal;
   out vec3 v_FragPos;
   out vec3 v_tangent;
+  out vec4 v_projectedTexcoord;
   
   out vec3[16] v_surfaceToLight; //point light
   
@@ -229,6 +263,9 @@ init: function () {
       for (int i = 0; i < 16; i++) {
           v_surfaceToLight[i] = u_pointPos[i] - surfaceWorldPosition;
       }
+  
+      //shadow texture coordinates
+      v_projectedTexcoord = u_realWorld * u_textureMatrix * a_position;
   }`
 
   let fragmentShaderSource = `#version 300 es
@@ -239,6 +276,7 @@ init: function () {
   in vec3 v_normal;
   in vec3 v_FragPos; //same as a_position
   in vec3 v_tangent;
+  in vec4 v_projectedTexcoord;
   
   //point light
   in vec3[16] v_surfaceToLight;
@@ -251,6 +289,7 @@ init: function () {
   uniform sampler2D u_specularTexture;
   uniform sampler2D u_normalTexture;
   uniform sampler2D u_ao;
+  uniform sampler2D u_projectedTexture;
   
   /*
   uniform float u_isPortal;
@@ -346,6 +385,51 @@ init: function () {
     return totalLight;
   }
   
+  float calculateShadowLight() {
+    vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
+    //float bias = max(-0.0004 * (-1.0 + dot(v_normal, u_directionalVector)), -0.00003);
+    float bias = 0.000678;
+    float currentDepth = projectedTexcoord.z - bias;
+  
+    bool inRange =
+        projectedTexcoord.x >= 0.0 &&
+        projectedTexcoord.x <= 1.0 &&
+        projectedTexcoord.y >= 0.0 &&
+        projectedTexcoord.y <= 1.0;
+  
+    // the 'r' channel has the depth values
+    //vec4 projectedTexColor = vec4(texture(u_projectedTexture, projectedTexcoord.xy).rrr, 1);
+    float projectedDepth = texture(u_projectedTexture, projectedTexcoord.xy).r;
+    //float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
+    float shadowLight = 0.0;
+    vec2 texelSize = vec2(1.0 / 1056.0, 1.0 / 1056.0);
+    
+    for(int x = -3; x <= 3; ++x)
+    {
+        for(int y = -3; y <= 3; ++y)
+        {
+            float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(x, y) * texelSize).r; 
+            shadowLight += (inRange && currentDepth >= pcfDepth) ? 0.65 : 1.0;
+        }    
+    }
+    shadowLight /= 49.0;
+
+    /*for(int x = -1; x <= 1; ++x)
+    {
+      float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(x, 0) * texelSize).r; 
+      shadowLight += (inRange && currentDepth >= pcfDepth) ? 0.5 : 1.0; 
+    }
+    for(int y = -1; y <= 1; ++y)
+    {
+      float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(0, y) * texelSize).r; 
+      shadowLight += (inRange && currentDepth >= pcfDepth) ? 0.5 : 1.0;
+    } 
+    shadowLight /= 6.0;*/
+  
+    //float projectedAmount = inRange ? 1.0 : 0.0;
+    return shadowLight;
+  }
+  
   void main() {
       vec3 normal = normalize(v_normal);
       normal = normalMapNormal(normal, texture(u_normalTexture, v_texcoord).rgb);
@@ -365,8 +449,9 @@ init: function () {
       vec3 specular = calculateSpecular(dirLight, normal, specularTexelColor);
       vec3 pointLights = calculatePointLights(normal);
       float aoMultiplier = texture(u_ao, v_texcoord).r;
+      float shadowLight = calculateShadowLight();
   
-      vec3 lighting = (u_ambientLight + dirLight + specular + pointLights) * aoMultiplier;
+      vec3 lighting = (u_ambientLight + dirLight + specular + pointLights) * aoMultiplier * shadowLight;
   
       //TRANSPARENCY
       if (texelColor.a == 0.0) {
@@ -402,7 +487,7 @@ init: function () {
   out vec4 outColor;
   
   void main() {
-    outColor = vec4(0.0,0.0,0.0,0.0);
+    outColor = vec4(1.0,1.0,1.0,1.0);
   }`
 
   function createTextureAndUse(gl, src) {
@@ -443,15 +528,16 @@ init: function () {
   
 
   //attribute for vertex data
+  gl.useProgram(program)
   positionAttributeLocation = gl.getAttribLocation(currentProgram, "a_position")
   texcoordAttributeLocation = gl.getAttribLocation(currentProgram, "a_texcoord")
   normalAttributeLocation = gl.getAttribLocation(currentProgram, "a_normal")
   tangentAttributeLocation = gl.getAttribLocation(currentProgram, "a_tangent")
-  shadowPositionAttributeLocation = gl.getAttribLocation(currentProgram, "a_position")
 
   matrixUniformLocation = gl.getUniformLocation(currentProgram, "u_matrix")
-  shadowMatrixUniformLocation = gl.getUniformLocation(shadowProgram, "u_matrix")
   worldUniformLocation = gl.getUniformLocation(currentProgram, "u_world")
+  realWorldUniformLocation = gl.getUniformLocation(currentProgram, "u_realWorld")
+  textureMatrixUniformLocation = gl.getUniformLocation(currentProgram, "u_textureMatrix")
 
   resolutionUniformLocation = gl.getUniformLocation(currentProgram, "u_resolution")
 
@@ -460,13 +546,19 @@ init: function () {
   specularTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_specularTexture")
   normalTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_normalTexture")
   aoTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_ao")
+  shadowTextureUniformLocation = gl.getUniformLocation(currentProgram, "u_projectedTexture")
+
+  gl.useProgram(shadowProgram)
+  shadowPositionAttributeLocation = gl.getAttribLocation(shadowProgram, "a_position")
+  shadowMatrixUniformLocation = gl.getUniformLocation(shadowProgram, "u_matrix")
 
   gl.useProgram(currentProgram)
   gl.uniform1i(textureUniformLocation, 0)
   gl.uniform1i(specularTextureUniformLocation, 1)
   gl.uniform1i(normalTextureUniformLocation, 2)
   gl.uniform1i(aoTextureUniformLocation, 3)
-
+  gl.uniform1i(shadowTextureUniformLocation, 4)
+  
   //directional lighting uniforms
   ambientLightUniformLocation = gl.getUniformLocation(currentProgram, "u_ambientLight")
   directionalLightColorUniformLocation = gl.getUniformLocation(currentProgram, "u_directionalLightColor")
@@ -528,7 +620,7 @@ init: function () {
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, textures["portalDepthTexture"], 0);
 
   //SHADOWMAP
-  var shadowMapTexture = gl.createTexture()
+  shadowMapTexture = gl.createTexture()
   gl.bindTexture(gl.TEXTURE_2D, shadowMapTexture)
 
   //depth buffer configuration
@@ -540,31 +632,34 @@ init: function () {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
+  gl.activeTexture(gl.TEXTURE4)
+  gl.bindTexture(gl.TEXTURE_2D, shadowMapTexture)
+
   //create framebuffer for rendering to it
-  var shadowMapFramebuffer = gl.createFramebuffer()
-  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowMapFramebuffer)
+  renderer.shadowMapFramebuffer = gl.createFramebuffer()
+  gl.bindFramebuffer(gl.FRAMEBUFFER, renderer.shadowMapFramebuffer)
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadowMapTexture, 0)
 },
 newFrame: function(clearColor) {
+  
   if (clearColor == undefined) {
     clearColor = renderer.clearColor
   }
   
+  let shadowWorldMatrix = getShadowWorldMatrix()
+  
+  //shadowWorldMatrix = webGLextra.m4.translate(shadowWorldMatrix, cameraTranslation[0],cameraTranslation[1],cameraTranslation[2])
+
   if (renderer.isShadowMap) {
+    renderer.lastShadowRenderCameraMatrix = renderer.cameraMatrix
+
     clearColor = [1,1,1,1]
 
     currentProgram = shadowProgram
     
-    let cameraPosNormal = [
-      renderer.directionalLightNormal[0] * -renderer.shadowDistance,
-      renderer.directionalLightNormal[1] * -renderer.shadowDistance,
-      renderer.directionalLightNormal[2] * -renderer.shadowDistance]
-    let lookAtNormal = [
-      renderer.directionalLightNormal[0] * renderer.shadowDistance,
-      renderer.directionalLightNormal[1] * renderer.shadowDistance,
-      renderer.directionalLightNormal[2] * renderer.shadowDistance]
-    renderer.cameraMatrix = webGLextra.m4.lookAt(cameraPosNormal, renderer.directionalLightNormal, [0,1,0])
+    renderer.cameraMatrix = shadowWorldMatrix
   } else {
+    //renderer.cameraMatrix = shadowWorldMatrix
     currentProgram = program
   }
 
@@ -579,14 +674,16 @@ newFrame: function(clearColor) {
     gl.uniform3fv(viewPosUniformLocation, webGLextra.m4.getTranslation(this.cameraMatrix))
   }
 
-  gl.enable(gl.CULL_FACE)
+  //gl.enable(gl.CULL_FACE)
   gl.enable(gl.DEPTH_TEST)
 
   if (!this.isShadowMap) {
+    gl.enable(gl.CULL_FACE)
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     gl.viewport(0,0,canvas.clientWidth,canvas.clientHeight)
   } else {
-    gl.bindFramebuffer(gl.FRAGMENTBUFFER, shadowMapFramebuffer)
+    gl.disable(gl.CULL_FACE)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, renderer.shadowMapFramebuffer)
     gl.viewport(0,0,renderer.shadowMapSize,renderer.shadowMapSize)
   }
   
@@ -599,6 +696,10 @@ drawGeometry: function(geometry, texcoords, normals, tangents) {
   gl.bindVertexArray(vao)
 
   if (!this.isShadowMap) {
+    gl.useProgram(program)
+    gl.activeTexture(gl.TEXTURE4)
+    gl.bindTexture(gl.TEXTURE_2D, shadowMapTexture)
+
     //connect a_position & ARRAY_BUFFER
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
@@ -638,6 +739,8 @@ drawGeometry: function(geometry, texcoords, normals, tangents) {
 
     gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, true, 0, 0)
   } else {
+    gl.useProgram(shadowProgram)
+
     //connect a_position & ARRAY_BUFFER
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
@@ -667,9 +770,34 @@ drawGeometry: function(geometry, texcoords, normals, tangents) {
   worldMatrix = webGLextra.m4.yRotate(worldMatrix, renderer.globalRotation[1])
   worldMatrix = webGLextra.m4.zRotate(worldMatrix, renderer.globalRotation[2])
 
+  let realWorldMatrix = webGLextra.m4.translation(renderer.globalTransform[0],renderer.globalTransform[1],renderer.globalTransform[2])
+  realWorldMatrix = webGLextra.m4.xRotate(realWorldMatrix, renderer.globalRotation[0])
+  realWorldMatrix = webGLextra.m4.yRotate(realWorldMatrix, renderer.globalRotation[1])
+  realWorldMatrix = webGLextra.m4.zRotate(realWorldMatrix, renderer.globalRotation[2])
+  realWorldMatrix = webGLextra.m4.translate(realWorldMatrix, renderer.globalOriginOffset[0],renderer.globalOriginOffset[1],renderer.globalOriginOffset[2])
+  realWorldMatrix = webGLextra.m4.scale(realWorldMatrix, renderer.globalScale[0], renderer.globalScale[1], renderer.globalScale[2])
+
+  let orthoProjectionMatrix = webGLextra.m4.orthographic(-renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, -renderer.shadowMapMetersLength, renderer.shadowMapMetersLength, renderer.zNear, renderer.zFar)
+
+  let textureMatrix = webGLextra.m4.identity();
+  textureMatrix = webGLextra.m4.translate(textureMatrix, 0.5, 0.5, 0.5)
+  textureMatrix = webGLextra.m4.scale(textureMatrix, 0.5, 0.5, 0.5)
+  textureMatrix = webGLextra.m4.multiply(textureMatrix, orthoProjectionMatrix)
+  // use the inverse of this world matrix to make
+  // a matrix that will transform other positions
+  // to be relative this this world space.
+  let shadowWorldMatrix = getShadowWorldMatrix()
+  
+  //shadowWorldMatrix = webGLextra.m4.translate(shadowWorldMatrix, cameraTranslation[0],0,cameraTranslation[2])
+  
+
+  textureMatrix = webGLextra.m4.multiply(textureMatrix, webGLextra.m4.inverse(shadowWorldMatrix))
+
   if (!this.isShadowMap) {
     gl.uniformMatrix4fv(matrixUniformLocation, false, viewProjectionMatrix)
     gl.uniformMatrix4fv(worldUniformLocation, false, worldMatrix)
+    gl.uniformMatrix4fv(realWorldUniformLocation, false, realWorldMatrix)
+    gl.uniformMatrix4fv(textureMatrixUniformLocation, false, textureMatrix)
   } else {
     gl.uniformMatrix4fv(shadowMatrixUniformLocation, false, viewProjectionMatrix)
   }

@@ -8,6 +8,8 @@ in vec3 a_tangent;
 //u_matrix = u_worldViewProjection
 uniform mat4 u_matrix;
 uniform mat4 u_world;
+uniform mat4 u_realWorld;
+uniform mat4 u_textureMatrix;
 
 uniform vec3[16] u_pointPos; //point light
 
@@ -15,6 +17,7 @@ out vec2 v_texcoord;
 out vec3 v_normal;
 out vec3 v_FragPos;
 out vec3 v_tangent;
+out vec4 v_projectedTexcoord;
 
 out vec3[16] v_surfaceToLight; //point light
 
@@ -36,4 +39,7 @@ void main() {
     for (int i = 0; i < 16; i++) {
         v_surfaceToLight[i] = u_pointPos[i] - surfaceWorldPosition;
     }
+
+    //shadow texture coordinates
+    v_projectedTexcoord = u_realWorld * u_textureMatrix * a_position;
 }

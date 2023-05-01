@@ -6,6 +6,10 @@ function subtractVectors(a, b) {
   return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 }
 
+function addVectors(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
 function normalize(v) {
   var length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   // make sure we don't divide by 0.
@@ -461,23 +465,23 @@ var webGLextra = {
           },
           orthographic: function orthographic(left, right, bottom, top, near, far, dst) {
             dst = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-        
-            dst[ 0] = 2 / (right - left);
-            dst[ 1] = 0;
-            dst[ 2] = 0;
-            dst[ 3] = 0;
-            dst[ 4] = 0;
-            dst[ 5] = 2 / (top - bottom);
-            dst[ 6] = 0;
-            dst[ 7] = 0;
-            dst[ 8] = 0;
-            dst[ 9] = 0;
-            dst[10] = 2 / (near - far);
-            dst[11] = 0;
-            dst[12] = (left + right) / (left - right);
-            dst[13] = (bottom + top) / (bottom - top);
-            dst[14] = (near + far) / (near - far);
-            dst[15] = 1;
+            
+            dst[ 0] = 2 / (right - left)
+            dst[ 1] = 0
+            dst[ 2] = 0
+            dst[ 3] = 0
+            dst[ 4] = 0
+            dst[ 5] = 2 / (top - bottom)
+            dst[ 6] = 0
+            dst[ 7] = 0
+            dst[ 8] = 0
+            dst[ 9] = 0
+            dst[10] = 2 / (near - far)
+            dst[11] = 0
+            dst[12] = (left + right) / (left - right)
+            dst[13] = (bottom + top) / (bottom - top)
+            dst[14] = (near + far) / (near - far)
+            dst[15] = 1
         
             return dst;
           },
@@ -603,14 +607,37 @@ var webGLextra = {
             return res
           },
           subtractVectors: subtractVectors,
+          addVectors: addVectors,
           scaleVector: function scaleVector(v, s) {
             let dst = [0,0,0]
-            dst[0] = v[0] * s;
-            dst[1] = v[1] * s;
-            dst[2] = v[2] * s;
+            dst[0] = v[0] * s
+            dst[1] = v[1] * s
+            dst[2] = v[2] * s
             return dst;
           },
           normalize: normalize,
+          identity: function identity() {
+            dst = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        
+            dst[ 0] = 1
+            dst[ 1] = 0
+            dst[ 2] = 0
+            dst[ 3] = 0
+            dst[ 4] = 0
+            dst[ 5] = 1
+            dst[ 6] = 0
+            dst[ 7] = 0
+            dst[ 8] = 0
+            dst[ 9] = 0
+            dst[10] = 1
+            dst[11] = 0
+            dst[12] = 0
+            dst[13] = 0
+            dst[14] = 0
+            dst[15] = 1
+        
+            return dst
+          },
       },
     meshBuilder: {
       createCube: function (size) {

@@ -89,7 +89,7 @@ let FPSCounter = 0
 //lighting
 renderer.setAmbientLightColor([0.23,0.23,0.26])
 renderer.setDirectionalLightColor([0.9,0.9,0.9])
-renderer.setDirectionalLightDirection([-0.2,-1,-0.25])
+renderer.setDirectionalLightDirection([-0.2,-0.6,-0.25])
 renderer.clearColor = [0.258,0.529,0.960,1]
 
 //test mesh
@@ -232,8 +232,6 @@ function tick() {
         lastSecond = new Date().getTime() / 1000
     }
 
-    SelfPlayer.tickUpdate(deltaTime)
-
     let ambientC = hexToRgb(document.getElementById("ambient").value)
     let direcC = hexToRgb(document.getElementById("directional").value)
     //renderer.setAmbientLightColor([ambientC[0],ambientC[1],ambientC[2]])
@@ -295,13 +293,27 @@ function tick() {
     //parasol.hitbox.visualizeMeshBox()
     
     //render meshes
-    renderer.perspective = true
+    if (renderer.shadowsEnabled & FPSCounter % 20 === 0) {
+        renderer.lastShadowRenderCameraMatrix = renderer.cameraMatrix
+        renderer.isShadowMap = true
+        renderer.perspective = false
+        renderer.newFrame()
+        
+        for (let i = 0; i < allMeshes.length; i++) {
+            allMeshes[i].renderMesh()
+        }
+    }
+
+    SelfPlayer.tickUpdate(deltaTime)
+
     renderer.isShadowMap = false
+    renderer.perspective = true
     renderer.newFrame()
     
     for (let i = 0; i < allMeshes.length; i++) {
         allMeshes[i].renderMesh()
     }
+    
 
     /*renderer.isShadowMap = true
     renderer.perspective = false
