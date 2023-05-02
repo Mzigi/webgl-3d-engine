@@ -29,6 +29,14 @@ let Player = {
     "velocityY": 0,
 }*/
 
+//prevent page jump
+window.addEventListener('keydown', ev => {
+    if (['ArrowDown', 'ArrowUp', ' '].includes(ev.key)) {
+        ev.preventDefault();
+    }
+});
+window.addEventListener('wheel', ev => ev.preventDefault(), { passive: false });
+
 let SelfPlayer = new Player([0,15,0])
 
 function radToDeg(r) {
