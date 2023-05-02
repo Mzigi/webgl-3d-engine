@@ -400,20 +400,24 @@ init: function () {
     // the 'r' channel has the depth values
     //vec4 projectedTexColor = vec4(texture(u_projectedTexture, projectedTexcoord.xy).rrr, 1);
     float projectedDepth = texture(u_projectedTexture, projectedTexcoord.xy).r;
-    //float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
+    bool inShadow = (inRange && projectedDepth <= currentDepth) ? true : false;
     float shadowLight = 0.0;
     vec2 texelSize = vec2(1.0 / 1056.0, 1.0 / 1056.0);
     
-    for(int x = -3; x <= 3; ++x)
-    {
-        for(int y = -3; y <= 3; ++y)
-        {
-            float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(x, y) * texelSize).r; 
-            shadowLight += (inRange && currentDepth >= pcfDepth) ? 0.65 : 1.0;
-        }    
+    if (inShadow) {
+      for(int x = -3; x <= 3; ++x)
+      {
+          for(int y = -3; y <= 3; ++y)
+          {
+              float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(x, y) * texelSize).r; 
+              shadowLight += (inRange && currentDepth >= pcfDepth) ? 0.65 : 1.0;
+          }    
+      }
+      shadowLight /= 49.0;
+    } else {
+      shadowLight = 1.0;
     }
-    shadowLight /= 49.0;
-
+ 
     /*for(int x = -1; x <= 1; ++x)
     {
       float pcfDepth = texture(u_projectedTexture, projectedTexcoord.xy + vec2(x, 0) * texelSize).r; 
