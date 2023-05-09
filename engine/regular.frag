@@ -106,7 +106,7 @@
       diffuse *= attenuation;
       specular *= attenuation;
   
-      vec3 result = ambient * attenuation + diffuse + specular;
+      vec3 result = (ambient * attenuation + diffuse + specular) * u_pointColor[i];
       if (u_pointAttenuation[i].x > 0.0) {
         totalLight += result;
       }
@@ -131,11 +131,12 @@
     // the 'r' channel has the depth values
     //vec4 projectedTexColor = vec4(texture(u_projectedTexture, projectedTexcoord.xy).rrr, 1);
     float projectedDepth = texture(u_projectedTexture, projectedTexcoord.xy).r;
-    bool inShadow = (inRange && projectedDepth <= currentDepth) ? true : false;
-    float shadowLight = 0.0;
-    vec2 texelSize = vec2(1.0 / 1056.0, 1.0 / 1056.0);
+    //bool inShadow = (inRange && projectedDepth <= currentDepth) ? true : false;
+    //float shadowLight = 0.0;
+    float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.75 : 1.0;
+    //vec2 texelSize = vec2(1.0 / 1056.0, 1.0 / 1056.0);
 
-    if (inShadow) {
+    /*if (inShadow) {
       for(int x = -2; x <= 2; ++x)
       {
           for(int y = -2; y <= 2; ++y)
@@ -149,7 +150,7 @@
       shadowLight /= 25.0;
     } else {
       shadowLight = 1.0;
-    }
+    }*/
  
     /*for(int x = -1; x <= 1; ++x)
     {
