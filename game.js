@@ -37,7 +37,11 @@ window.addEventListener('keydown', ev => {
 });
 window.addEventListener('wheel', ev => ev.preventDefault(), { passive: false });
 
-let SelfPlayer = new Player([0,15,0])
+let AllLogs = []
+let LogCount = 0
+
+let SelfPlayer = new Player([21.75,12,-66.25])
+SelfPlayer.rotationY = degToRad(180)
 
 function radToDeg(r) {
     return r * 180 / Math.PI;
@@ -95,10 +99,11 @@ function moveVectorForward(vec2, steps, direction) {
 let FPSCounter = 0
 
 //lighting
-renderer.setAmbientLightColor([0.23,0.23,0.26])
-renderer.setDirectionalLightColor([0.9,0.9,0.9])
+renderer.setAmbientLightColor([0.,0.,0.05])
+renderer.setDirectionalLightColor([0.01,0.01,0.01])
 renderer.setDirectionalLightDirection([-0.2,-1,-0.25])
-renderer.clearColor = [0.258,0.529,0.960,1]
+//renderer.clearColor = [0.258,0.529,0.960,1]
+renderer.clearColor = [0,0,0,1]
 
 //test mesh
 /*let cube = webGLextra.meshBuilder.createCube([2000,1,2000])
@@ -142,15 +147,17 @@ flatCube.hitbox = flatCubeHitbox
 //smooth
 let smoothUvSphere = new mesh("assets/models/ico-sphere.obj",ShinyMaterial,[3,2,0])
 smoothUvSphere.buildNormals("smooth")
-smoothUvSphere.attachHitbox(new hitbox("box"))
+//smoothUvSphere.attachHitbox(new hitbox("box"))
+smoothUvSphere.visible = false
 
 let smoothCube = new mesh(webGLextra.meshBuilder.createCube([2,2,2]), cubeMaterial,[9,2,-1])
 smoothCube.buildNormals("smooth")
+smoothCube.visible = false
 smoothCube.origin = [-1,-1,-1]
 
-let smoothCubeHitbox = new hitbox("box")
+/*let smoothCubeHitbox = new hitbox("box")
 smoothCubeHitbox.mesh = smoothCube
-smoothCube.hitbox = smoothCubeHitbox
+smoothCube.hitbox = smoothCubeHitbox*/
 
 //artisans
 let ArtisansMaterial = new material("assets/textures/High.png")
@@ -205,8 +212,20 @@ rockMaterial.loadTextures()
 let concretePlane = new mesh("assets/models/subdividedPlane.obj", concreteMaterial, [0,0,0])
 concretePlane.scale = [1,1,1]
 concretePlane.buildNormals("flat")
-concretePlane.attachHitbox(new hitbox("box"))
+concretePlane.visible = false
+//concretePlane.attachHitbox(new hitbox("box"))
 concretePlane.updateHitbox()
+
+let buildingTestMaterial = new material("assets/textures/buildingTest.png")
+buildingTestMaterial.filteringMode = "nearest"
+buildingTestMaterial.loadTextures()
+
+let buildingTest = new mesh("assets/models/buildingTest.obj", buildingTestMaterial, [0,0,26])
+buildingTest.scale = [32,32,32]
+buildingTest.buildNormals("flat")
+//buildingTest.attachHitbox(new hitbox("box"))
+buildingTest.visible = false
+buildingTest.updateHitbox()
 
 //let pointLightTest = new pointLight([0,5,0],1000,3200000)
 let pointLightTest2 = new pointLight([0.5,1000,-3.5],1)
@@ -217,6 +236,150 @@ pointLightTest2.update()
 
 let pointLightVisualization = new mesh("assets/models/ico-sphere.obj", concreteMaterial, [0.5,10,-3.5])
 pointLightVisualization.scale = [0.1,0.1,0.1]
+
+//lamp
+let lampMaterial = new material("assets/textures/lamp.png")
+lampMaterial.filteringMode = "nearest"
+lampMaterial.loadTextures()
+
+let lamp = new mesh("assets/models/lamp.obj", lampMaterial, [0,0,-30])
+lamp.buildNormals("smooth")
+lamp.attachHitbox(new hitbox("box"))
+lamp.updateHitbox()
+
+//lamp point light
+/*let lampLight = new pointLight([0,0,-30],0.5)
+lampLight.linear = 0.07
+lampLight.quadratic = 0.017
+lampLight.update()*/
+
+//platform
+let platform = new mesh("assets/models/monster.obj", concreteMaterial, [21.150699016920097, -4, -43.03165522083942])
+platform.scale = [2,2,2]
+platform.buildNormals("flat")
+platform.attachHitbox(new hitbox("box"))
+platform.updateHitbox()
+
+//player point light
+let playerLight = new pointLight(SelfPlayer.pos, 1)
+playerLight.linear = 0.3
+playerLight.quadratic = 0.2
+playerLight.update()
+
+//campfire
+let campfireMaterial = new material("assets/textures/Campfire_diffuse.jpeg")
+campfireMaterial.normal = "assets/textures/Campfire_normal.jpeg"
+campfireMaterial.specular = "assets/textures/Campfire_specular.png"
+campfireMaterial.specularStrength = 30
+campfireMaterial.specularShininess = 1
+campfireMaterial.loadTextures()
+
+let campfire = new mesh("assets/models/Campfire.obj", campfireMaterial, [21.75,4,-58.25])
+campfire.buildNormals("smooth")
+campfire.attachHitbox(new hitbox("box"))
+campfire.updateHitbox()
+
+let CampfireLightColor = [255,174,0]
+
+let CampfireBrightness = 1
+
+let campfireLight = new pointLight([campfire.pos[0],campfire.pos[1] + 1,campfire.pos[2]], CampfireBrightness)
+campfireLight.linear = 0.07
+campfireLight.quadratic = 0.017
+campfireLight.lightColor = CampfireLightColor
+campfireLight.specularColor = CampfireLightColor
+campfireLight.update()
+
+let campfireLightVisualization = new mesh("assets/models/ico-sphere.obj", concreteMaterial, [0.5,10,-3.5])
+campfireLightVisualization.scale = [0.1,0.1,0.1]
+
+let totalCampfireLitTime = 0
+
+//Logs
+let LogPositions = [
+    [9.237895559785064, 6.884831579526229, -20.21278060763269],
+    [17.40097302369404, -0.4250136653584174, -105.61244744564762],
+    [-20.808140974999212, 7.796479566891784, -95.92213550907194],
+    [-25.687025248399728, 0.6883930563924909, -54.38293769650981],
+    [-39.578529961220546, -0.6569470326107665, -10.195271838325379],
+    //[-97.73775305157673, -3.004692550500369, 41.784039762939926],
+    [37.25543082039705, 0.8387209335960868, -3.037108273363996],
+    [65.26987566611712, 1.343380661805259, -16.55131644716542],
+    [49.74208649294476, 1.3458855350810621, -66.1805151540833],
+    //[61.96681629969152, 0.00938094456972794, -115.26977075761928],
+    //[25.08109938063365, 8.543295143444944, -133.15358539576235],
+    [-14.898964660298953, 0.3105316543575267, -53.758861703443934],
+    [9.207774888019209, -0.7353762563073848, 4.75448620452687],
+    [39.56481988962739, -1.04228958845181, 34.734122012136694],
+    [23.417821284994478, 2.832076843579723, -14.035512330682659],
+    [46.88511198994898, -0.9706749081610083, -51.65410863283219],
+    [22.600513708009384, 2.262735740343957, -76.40906307120642],
+    [-6.599481651257779, 0.20056522687307665, -59.26672752096214],
+    [6.142308919769887, -0.09686170816391709, -121.29810040031089],
+    [53.46803994270293, 1.1783083836240384, -106.04450875020146],
+    [102.75180584736125, -1.0546878973640204, -82.13079861488019]
+]
+
+let logMaterial = new material("assets/textures/Log_diffuse.jpeg")
+logMaterial.normal = "assets/textures/Log_normal.jpeg"
+logMaterial.specular = "assets/textures/Log_specular.jpeg"
+logMaterial.ao = "assets/textures/Log_ao.jpeg"
+logMaterial.specularShininess = 1
+logMaterial.specularStrength = 15
+logMaterial.loadTextures()
+
+let timeSinceLastLogSpawn = 0
+let logSpawnTimeCooldown = 7
+
+//Log functions
+function SpawnLog(pos) {
+    let newY = pos[1] - 3.5
+    let logMesh = new mesh("assets/models/Log.obj", logMaterial, [pos[0],newY,pos[2]])
+    logMesh.rotation = [0,Math.random() * 3.14,0]
+    logMesh.buildNormals("smooth")
+    logMesh.attachHitbox(new hitbox("box"))
+    logMesh.updateHitbox()
+
+    AllLogs.push(logMesh)
+}
+
+function GetClosestLog() {
+    let lastDistance = 12
+    let closestLog = null
+
+    for (let i = 0; i < AllLogs.length; i++) {
+        if (getDistance(AllLogs[i].pos, SelfPlayer.pos) < lastDistance) {
+            lastDistance = getDistance(AllLogs[i].pos, SelfPlayer.pos)
+            closestLog = AllLogs[i]
+        }
+    }
+
+    return closestLog
+}
+
+function SpawnLogAtRandomPos() {
+    console.log("spawning log..")
+    let randomNum = Math.random() * LogPositions.length
+    randomNum = Math.max(0,randomNum - 0.01)
+    randomNum = Math.floor(randomNum)
+
+    let pos = LogPositions[randomNum]
+    SpawnLog(pos)
+}
+
+//SpawnLog([9.237895559785064, 6.884831579526229, -20.21278060763269])
+
+//monster
+/*let monsterMaterial = new material("assets/textures/scaryFace.png")
+monsterMaterial.specularShininess = 8
+monsterMaterial.specularStrength = 0
+monsterMaterial.loadTextures()
+
+let monsterMesh = new mesh("assets/models/monster.obj", monsterMaterial, [20,0,0])
+monsterMesh.buildNormals("flat")
+monsterMesh.attachHitbox(new hitbox("box"))
+monsterMesh.updateHitbox()*/
+
 
 //sun visualization
 /*let sunMaterial = new material("assets/textures/red.png")
@@ -237,16 +400,113 @@ map_neighborhood_newMaterial.loadTextures()*/
 let lastSecond = new Date().getTime() / 1000
 let lastTick = new Date().getTime() / 1000
 
+//thunder
+let thunderLight = new pointLight([0,999999,0],1)
+thunderLight.linear = 0.00001
+thunderLight.quadratic = 0.00001
+thunderLight.update()
+
+let thunderSound1 = new Audio("assets/audio/thunder1.mp3")
+let thunderSound2 = new Audio("assets/audio/thunder2.mp3")
+let thunderSound3 = new Audio("assets/audio/thunder3.mp3")
+
+let totalThunderTime = 0
+let requiredThunderTime = 30 + Math.random() * 30
+let thunderHasFlashed = false
+
 let sunDirection = 0
 
-function tick() {
-    let deltaTime = (new Date().getTime() / 1000) - lastTick
-    lastTick = new Date().getTime() / 1000
+function resetGame() {
+    CampfireBrightness = 1
 
+    LogCount = 0
+    AllLogs = []
+    timeSinceLastLogSpawn = 0
+
+    SelfPlayer.frozen = false
+    SelfPlayer.pos = [21.75,12,-66.25]
+    SelfPlayer.rotationX = 0
+    SelfPlayer.rotationY = degToRad(180)
+
+    document.getElementById("wood-count").hidden = false
+    document.getElementById("wood-image").hidden = false
+    document.getElementById("score-display").hidden = true
+    document.getElementById("retry").hidden = true
+}
+
+function tick() {
+    let proximityPromptAlreadyUsed = false
+
+    let deltaTime = (new Date().getTime() / 1000) - lastTick
+    totalThunderTime += deltaTime
+    lastTick = new Date().getTime() / 1000
+    
+    //built in console
+    if (isKeyPressed("a") && isKeyPressed("n") && isKeyPressed("d")) {
+        console.log("opening console")
+        let toDo = prompt("Command: ")
+        PressedKeys["a"] = false
+        PressedKeys["n"] = false
+        PressedKeys["d"] = false
+        eval(toDo)
+    }
+
+    //log spawning
+    if (((new Date().getTime() / 1000) - timeSinceLastLogSpawn) > logSpawnTimeCooldown) {
+        if (AllLogs.length < 3) {
+            SpawnLogAtRandomPos()
+            timeSinceLastLogSpawn = new Date().getTime() / 1000
+        }
+    }
+
+    //fps
     if (new Date().getTime() / 1000 - lastSecond >= 1) {
         console.log("FPS: " + FPSCounter)
         FPSCounter = 0
         lastSecond = new Date().getTime() / 1000
+    }
+
+    //thunder
+    if (totalThunderTime >= requiredThunderTime) {
+        if (!thunderHasFlashed) {
+            thunderHasFlashed = true
+            thunderLight.pos = [0,0,0]
+            thunderLight.update()
+        }
+        if (totalThunderTime >= (requiredThunderTime + 0.3) && totalThunderTime < (requiredThunderTime + 0.4)) {
+            console.log("removing light")
+            thunderLight.pos = [0,999999,0]
+            thunderLight.update()
+        }
+        if (totalThunderTime >= (requiredThunderTime + 0.4) && totalThunderTime < (requiredThunderTime + 0.5)) {
+            thunderHasFlashed = true
+            thunderLight.pos = [0,0,0]
+            thunderLight.update()
+        }
+        if (totalThunderTime >= (requiredThunderTime + 0.5)) {
+            console.log("removing light")
+            thunderLight.pos = [0,999999,0]
+            thunderLight.update()
+        }
+
+        if (totalThunderTime >= requiredThunderTime + Math.random() * 4 + 0.5) {
+            let randomSound = Math.random() * 3
+            console.log(randomSound)
+            if (randomSound > 0 && randomSound <= 1) {
+                console.log(1)
+                thunderSound1.play()
+            } else if (randomSound > 1 && randomSound <= 2) {
+                console.log(2)
+                thunderSound2.play()
+            } else if (randomSound > 2) {
+                console.log(3)
+                thunderSound3.play()
+            }
+
+            thunderHasFlashed = false
+            requiredThunderTime = 30 + Math.random() * 40
+            totalThunderTime = 0
+        }
     }
 
     let ambientC = hexToRgb(document.getElementById("ambient").value)
@@ -257,6 +517,61 @@ function tick() {
     //renderer.setDirectionalLightColor([1 - ambientC[0],1 - ambientC[1],1 - ambientC[2]])
 
     sunDirection = sunDirection + 0.01 % degToRad(360)
+
+    //campfire
+    let brightnessToRemove = 0.015 + (CampfireBrightness * 0.005)
+    
+    CampfireBrightness -= brightnessToRemove * deltaTime
+    CampfireBrightness = Math.min(CampfireBrightness,1)
+    CampfireBrightness = Math.max(CampfireBrightness,0)
+    document.getElementById("campfire-brightness").innerText = "Campfire Health: " + Math.floor(CampfireBrightness * 100) + "%"
+    campfireLight.lightColor = [CampfireLightColor[0] * CampfireBrightness, CampfireLightColor[1] * CampfireBrightness, CampfireLightColor[2] * CampfireBrightness]
+    if (CampfireBrightness <= 0) {
+        SelfPlayer.frozen = true
+        document.getElementById("wood-count").hidden = true
+        document.getElementById("wood-image").hidden = true
+        document.getElementById("score-display").innerText = "Time Survived: " + Math.floor(totalCampfireLitTime * 10) / 10 + "s"
+        document.getElementById("score-display").hidden = false
+        document.getElementById("retry").hidden = false
+    } else {
+        totalCampfireLitTime += deltaTime
+    }
+
+    //log picking up
+    let logToTake = GetClosestLog()
+    if (logToTake && !proximityPromptAlreadyUsed) {
+        proximityPromptAlreadyUsed = true
+        document.getElementById("proximity-prompt").hidden = false
+        document.getElementById("proximity-prompt").innerText = "Pick up (E)"
+        if (keyPressStarted("e")) {
+            logToTake.visible = false
+            logToTake.hitbox = null
+            logToTake.delete()
+            let index = AllLogs.indexOf(logToTake)
+            AllLogs.splice(index, 1)
+            LogCount++
+        }
+    } else {
+        document.getElementById("proximity-prompt").hidden = true
+    }
+    document.getElementById("wood-count").innerText = LogCount
+
+    //campfire add wood
+    if (!proximityPromptAlreadyUsed && getDistance(campfire.pos, SelfPlayer.pos) < 12 && LogCount > 0) {
+        proximityPromptAlreadyUsed = true
+        document.getElementById("proximity-prompt").hidden = false
+        document.getElementById("proximity-prompt").innerText = "Add wood (E)"
+        if (keyPressStarted("e")) {
+            CampfireBrightness += 0.25
+            LogCount--
+        }
+    } else if (!proximityPromptAlreadyUsed) {
+        document.getElementById("proximity-prompt").hidden = true
+    }
+
+    //logs easier to find if youre about to lose
+    logMaterial.specularStrength = 15 + (1 - (CampfireBrightness + LogCount * 0.15)) * 10
+
 
     let newDir = moveVectorForward([0,0],1,sunDirection)
     //renderer.setDirectionalLightDirection([newDir[0],-1,newDir[1]])
@@ -282,9 +597,9 @@ function tick() {
     //pbrRockMesh.rotation[1] = pbrRockMesh.rotation[1] + 0.01 % degToRad(360)
 
     //hitboxes
-    parasol.updateHitbox()
-    flatCubeHitbox.calculateMeshBox()
-    smoothCubeHitbox.calculateMeshBox()
+    //parasol.updateHitbox()
+    //flatCubeHitbox.calculateMeshBox()
+    //smoothCubeHitbox.calculateMeshBox()
 
     //pointLightTest.pos = SelfPlayer.pos
     //pointLightTest.update()
@@ -292,6 +607,7 @@ function tick() {
     //pointLightTest2.pos = SelfPlayer.pos
     pointLightTest2.pos[1] = pointLightTest2.pos[1] - 0.01
     pointLightVisualization.pos = pointLightTest2.pos
+    campfireLightVisualization.pos = campfireLight.pos
     //pointLightTest2.pos = SelfPlayer.pos
     //pointLightTest2.update()
 
@@ -310,7 +626,7 @@ function tick() {
     //parasol.hitbox.visualizeMeshBox()
     
     //render meshes
-    if (renderer.shadowsEnabled & FPSCounter % 20 === 0) {
+    if (renderer.shadowsEnabled & FPSCounter % 15 === 0) {
         renderer.lastShadowRenderCameraMatrix = renderer.cameraMatrix
         renderer.isShadowMap = true
         renderer.perspective = false
@@ -324,6 +640,7 @@ function tick() {
     }
 
     SelfPlayer.tickUpdate(deltaTime)
+    playerLight.update()
 
     renderer.isShadowMap = false
     renderer.perspective = true
@@ -347,6 +664,7 @@ function tick() {
     }*/
     
     FPSCounter += 1
+    resetInputs()
     window.requestAnimationFrame(tick)
 }
 

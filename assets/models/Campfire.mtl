@@ -1,0 +1,24 @@
+# Blender 3.5.1 MTL File: 'Campfire.blend'
+# www.blender.org
+
+newmtl Campfire_MAT
+Ka 0.500000 0.500000 0.500000
+Ks 0.222727 0.222727 0.222727
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd C:/Campfire_MAT_BaseColor_01.jpg
+map_Ns C:/Campfire_MAT_Roughness.jpg
+map_refl C:/Campfire_MAT_Metallic.jpg
+map_Bump -bm 1.000000 C:/Campfire_MAT_Normal_JL.jpg
+
+newmtl Campfire_fire_MAT
+Ns 1000.000000
+Ka 0.500000 0.500000 0.500000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+illum 3
+map_Kd C:/Campfire_fire_MAT_BaseColor_Alpha.png
+map_d C:/Campfire_fire_MAT_BaseColor_Alpha.png

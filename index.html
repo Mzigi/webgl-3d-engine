@@ -8,6 +8,14 @@
   </head>
   <body>
     <canvas id="renderCanvas"></canvas>
+    <div id="proximity-prompt" style="position: absolute; bottom: 20px; left: 45%; color:white; font-size: xxx-large; user-select: none;" hidden>Pick up (E)</div>
+    <div id="campfire-brightness" style="position: absolute; top: 20px; left: 37%; color:white; font-size: xxx-large; user-select: none;">Campfire Health: 100%</div>
+    <img id="wood-image" src="assets/textures/wood.png" style="position: absolute; bottom: 20px; left: 20px; color:white; font-size: xxx-large; user-select: none; width: 100px; height: 100px;">
+    <div id="wood-count" style="position: absolute; bottom: 20px; left: 130px; color:white; font-size: xxx-large; user-select: none; width: 100px; height: 100px;">0</div>
+    
+    <div id="score-display" style="position: absolute; top: 35%; left: 39%; color:white; font-size: xxx-large; user-select: none;" hidden>Time Survived: 5s</div>
+    <button id="retry" onmousedown="resetGame()" style="position: absolute; top: 42%; left: 45%; color:white; background-color: coral; font-size: xxx-large; user-select: none;" hidden>Retry</button>
+    
 
     <input id="ambient" class="color" type="color" style="position:absolute; top:0; left:0;" hidden>
     <input id="directional" class="color" type="color" style="position:absolute; top:50px; left:0;" hidden>
@@ -52,7 +60,9 @@
       * Lets all the engines interact with eachother
       * Call a single function to render a full mesh with PBR, lighting and optimization checks
 
-      Audio
+      Credits
+      "Campfire" (https://skfb.ly/o9Pp9) by Zelad is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+      "Log" (https://skfb.ly/6WNJq) by Arkikon is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
     -->
   </body>
 </html>
