@@ -201,7 +201,7 @@ class mesh {
             object.mesh.tangent = generateTangents(object.mesh.geometry, object.mesh.texcoord)
 
             if (object.generateNormalsOnLoad) {
-                object.buildNormals(object.generateNormalsOnLoad)
+                object.buildNormals(object.generateNormalsOnLoad, object.normalsFlipped)
             }
             if (object.hitbox) {
                 object.updateHitbox()
@@ -225,15 +225,21 @@ class mesh {
             return
         }
         let textureOrMaterialLoaded = false
-        if (this.material) {
-            if (renderer.textureExists(this.material.diffuse)) {
+        
+        if (!renderer.isShadowMap) {
+            if (this.material) {
+                if (renderer.textureExists(this.material.diffuse)) {
+                    textureOrMaterialLoaded = true
+                }
+            } else if (renderer.textureExists(this.textureLink)) {
                 textureOrMaterialLoaded = true
             }
-        } else if (renderer.textureExists(this.textureLink)) {
+        } else {
             textureOrMaterialLoaded = true
         }
+
         let canSee = true
-        if (this.hitbox) {
+        if (this.hitbox && !renderer.isShadowMap) {
             canSee = this.hitbox.frustumIntersects()
         }
         if (textureOrMaterialLoaded && canSee) {
@@ -242,15 +248,17 @@ class mesh {
             renderer.globalScale = this.scale
             renderer.globalOriginOffset = this.origin
 
-            if (this.textureLink) {
-                renderer.useTextureGLOBAL(this.textureLink, "diffuse")
+            if (!renderer.isShadowMap) {
+                if (this.textureLink) {
+                    renderer.useTextureGLOBAL(this.textureLink, "diffuse")
 
-                if (!renderer.isShadowMap) {
-                    renderer.setSpecularStrength(0.1)
-                    renderer.setSpecularShininess(8)
+                    if (!renderer.isShadowMap) {
+                        renderer.setSpecularStrength(0.1)
+                        renderer.setSpecularShininess(8)
+                    }
+                } else {
+                    this.material.useMaterial()
                 }
-            } else {
-                this.material.useMaterial()
             }
 
             /*if (this.shading !== "normals") {
@@ -260,12 +268,12 @@ class mesh {
         }
     }
 
-    buildNormals(type) {
+    buildNormals(type, flipped) {
         if (this.mesh && this.mesh.geometry) {
             if (type === "flat") { 
-                this.mesh.normals = webGLextra.generateFlatShadingNormals(this.mesh.geometry)
+                this.mesh.normals = webGLextra.generateFlatShadingNormals(this.mesh.geometry, flipped)
             } else if (type === "smooth") {
-                this.mesh.normals = webGLextra.generateSmoothShadingNormals(this.mesh.geometry)
+                this.mesh.normals = webGLextra.generateSmoothShadingNormals(this.mesh.geometry, flipped)
             } else {
                 console.warn("Shading type " + type + " does not exist")
             }
@@ -273,6 +281,7 @@ class mesh {
             this.mesh.normals = new Float32Array(this.mesh.normals) //optimization
         } else {
             this.generateNormalsOnLoad = type
+            this.normalsFlipped = flipped
         }
     }
 

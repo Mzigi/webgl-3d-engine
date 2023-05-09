@@ -63,7 +63,7 @@ var webGLextra = {
             gl.viewport(0,0,canvas.width,canvas.height)
         }
     },
-    generateFlatShadingNormals: function (vertexArray) {
+    generateFlatShadingNormals: function (vertexArray, flipped) {
       let normalArray = []
       let triangleCount = vertexArray.length / 9
       for (let i = 0; i < triangleCount; i++) {
@@ -81,6 +81,12 @@ var webGLextra = {
           normalArray.push(normal[0] * -1)
           normalArray.push(normal[1] * -1)
           normalArray.push(normal[2] * -1)
+        }
+      }
+
+      if (flipped) {
+        for (let i = 0; i < normalArray.length; i++) {
+          normalArray[i] = normalArray[i] * -1
         }
       }
 
@@ -181,7 +187,7 @@ var webGLextra = {
 
       return normalArray
     },
-    generateSmoothShadingNormals: function (geometry) {
+    generateSmoothShadingNormals: function (geometry, flipped) {
       let normals = []
       let normalsTable = {}
       let triangleCount = geometry.length / 9
@@ -229,6 +235,12 @@ var webGLextra = {
         normalCombined = normalize(normalCombined)
 
         normals.push(normalCombined[0],normalCombined[1],normalCombined[2])
+      }
+
+      if (flipped) {
+        for (let i = 0; i < normals.length; i++) {
+          normals[i] = normals[i] * -1
+        }
       }
       
       return normals
