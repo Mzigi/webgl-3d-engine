@@ -180,6 +180,7 @@ smoothCube.hitbox = smoothCubeHitbox
 let ArtisansMaterial = new material("assets/textures/High.png")
 ArtisansMaterial.normal = "assets/textures/ArtisansNormalMap.png"
 ArtisansMaterial.specularStrength = 0
+ArtisansMaterial.filteringMode = "nearest"
 ArtisansMaterial.loadTextures()
 
 let ArtisansHub = new mesh("assets/models/Artisans_Hub.obj", ArtisansMaterial,[0,0,0])
