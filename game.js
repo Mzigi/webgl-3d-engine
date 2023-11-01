@@ -40,6 +40,8 @@ window.addEventListener('wheel', ev => ev.preventDefault(), { passive: false });
 let AllLogs = []
 let LogCount = 0
 
+let proximityPromptAlreadyUsed = false
+
 let SelfPlayer = new Player([21.75,12,-66.25])
 SelfPlayer.rotationY = degToRad(180)
 SelfPlayer.pos = [5.003319722126915, 8.004021903673507, -2.77568673353557]
