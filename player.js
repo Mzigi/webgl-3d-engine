@@ -29,6 +29,7 @@ class Player {
         this.rotationY = 0
         this.velocityY = 0
         this.falling = true
+        this.frozen = false
 
         //player stats
         this.walkSpeed = 12
@@ -39,7 +40,7 @@ class Player {
         let PlayerMaterial = new material("assets/textures/red.png")
 
         this.PlayerMesh = new mesh("assets/models/Player.obj", PlayerMaterial, pos)
-        this.PlayerMesh.visible = true
+        this.PlayerMesh.visible = false
         this.PlayerMesh.origin = [0,-2,0]
         this.PlayerMesh.pos = [0,8,0]
 
@@ -48,9 +49,15 @@ class Player {
 
         //sounds
         this.sounds = {
-            "footsteps": new audioPlayer("assets/audio/footsteps.mp3")
+            //"footsteps": new audioPlayer("assets/audio/footsteps.mp3")
+            "footsteps": new Audio("assets/audio/footsteps2.wav"),
+            "jump": new Audio("assets/audio/jump.mp3")
         }
-        this.sounds.footsteps.loop(true)
+
+        this.sounds.footsteps.loop = true
+        this.sounds.footsteps.playbackRate = 1.25
+
+        this.sounds.jump.volume = 0.5
     }
 
     collidesAt(pos) {
@@ -125,7 +132,7 @@ class Player {
         }*/
 
         if (NewPlayerPos[0] === this.pos[0] && NewPlayerPos[1] === this.pos[1] && NewPlayerPos[2] === this.pos[2]) {
-            this.sounds.footsteps.stop()
+            this.sounds.footsteps.pause()
         } else {
             this.sounds.footsteps.play()
         }
@@ -179,6 +186,8 @@ class Player {
     jump() {
         if (isKeyPressed(" ") && this.velocityY <= -0.2 && !this.falling) {
             this.velocityY = this.jumpPower
+            this.sounds.jump.currentTime = 0.1
+            this.sounds.jump.play()
         }
     }
 
@@ -187,22 +196,26 @@ class Player {
     }
 
     tickUpdate(deltaTime) {
-        this.updateRotation(deltaTime)
-        let attemptPos = this.getNewMovementPos(deltaTime)
+        if (!this.frozen) {
+            this.updateRotation(deltaTime)
+            let attemptPos = this.getNewMovementPos(deltaTime)
 
-        let originalHeight = this.pos[1]
-        if (!this.tryMoveTo([attemptPos[0], null, null])) {
-            this.tryMoveTo([attemptPos[0], originalHeight + this.slopeHeight * deltaTime, null])
+            let originalHeight = this.pos[1]
+            if (!this.tryMoveTo([attemptPos[0], null, null])) {
+                this.tryMoveTo([attemptPos[0], originalHeight + this.slopeHeight * deltaTime, null])
+            }
+
+            if (!this.tryMoveTo([null, null, attemptPos[2]])) {
+                this.tryMoveTo([null, originalHeight + this.slopeHeight * deltaTime, attemptPos[2]])
+            }
+            
+            if (!this.updateFalling(deltaTime,12)) {
+                this.jump()
+            }
+        } else {
+            this.sounds.footsteps.pause()
         }
 
-        if (!this.tryMoveTo([null, null, attemptPos[2]])) {
-            this.tryMoveTo([null, originalHeight + this.slopeHeight * deltaTime, attemptPos[2]])
-        }
-        
-        if (!this.updateFalling(deltaTime,12)) {
-            this.jump()
-        }
         this.updateRendererCamera()
-        
     }
 }
