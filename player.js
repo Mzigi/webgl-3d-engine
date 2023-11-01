@@ -209,7 +209,7 @@ class Player {
                 this.tryMoveTo([null, originalHeight + this.slopeHeight * deltaTime, attemptPos[2]])
             }
             
-            if (!this.updateFalling(deltaTime,12)) {
+            if (!this.updateFalling(deltaTime,6)) {
                 this.jump()
             }
         } else {

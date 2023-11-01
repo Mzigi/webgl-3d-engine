@@ -11,7 +11,7 @@ function getDistance(a,b) {
     let y = a[1] - b[1]
     let z = a[2] - b[2]
 
-    return Math.sqrt(x*x+y*y+z*z)
+    return (x**2+y**2+z**2)**0.5
 }
 
 function getViewProjectionMatrix() {
@@ -399,7 +399,10 @@ class hitbox {
                 let mesh1geometry = []
                 for (let i = 0; i < mesh1.mesh.geometry.length / 3; i++) {
                     let vec3 = [mesh1.mesh.geometry[i*3+0],mesh1.mesh.geometry[i*3+1],mesh1.mesh.geometry[i*3+2]]
-                    let newVec3 = webGLextra.m4.multiplyWith(mesh1Matrix, vec3)
+                    let newVec3 = vec3
+                    if (mesh1.pos[0] != 0 || mesh1.pos[1] != 0 || mesh1.pos[2] != 0) {
+                        newVec3 = webGLextra.m4.multiplyWith(mesh1Matrix, vec3)
+                    }
                     mesh1geometry[i*3+0] = newVec3[0]
                     mesh1geometry[i*3+1] = newVec3[1]
                     mesh1geometry[i*3+2] = newVec3[2]
