@@ -284,8 +284,8 @@ playerLight.quadratic = 0.2
 playerLight.update()
 
 //campfire
-let campfireMaterial = new material("assets/textures/Campfire_diffuse.png")
-campfireMaterial.normal = "assets/textures/Campfire_normal.png"
+let campfireMaterial = new material("assets/textures/Campfire_diffuse.jpeg")
+campfireMaterial.normal = "assets/textures/Campfire_normal.jpeg"
 campfireMaterial.specular = "assets/textures/Campfire_specular.png"
 campfireMaterial.specularStrength = 0.5
 campfireMaterial.specularShininess = 8

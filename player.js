@@ -40,7 +40,7 @@ class Player {
         let PlayerMaterial = new material("assets/textures/red.png")
 
         this.PlayerMesh = new mesh("assets/models/Player.obj", PlayerMaterial, pos)
-        this.PlayerMesh.visible = false
+        this.PlayerMesh.visible = true
         this.PlayerMesh.origin = [0,-2,0]
         this.PlayerMesh.pos = [0,8,0]
 
