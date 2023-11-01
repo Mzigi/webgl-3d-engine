@@ -37,16 +37,12 @@ window.addEventListener('keydown', ev => {
 });
 window.addEventListener('wheel', ev => ev.preventDefault(), { passive: false });
 
-<<<<<<< Updated upstream
-let SelfPlayer = new Player([0,15,0])
-=======
 let AllLogs = []
 let LogCount = 0
 
 let SelfPlayer = new Player([21.75,12,-66.25])
 SelfPlayer.rotationY = degToRad(180)
 SelfPlayer.pos = [5.003319722126915, 8.004021903673507, -2.77568673353557]
->>>>>>> Stashed changes
 
 function radToDeg(r) {
     return r * 180 / Math.PI;
@@ -104,12 +100,6 @@ function moveVectorForward(vec2, steps, direction) {
 let FPSCounter = 0
 
 //lighting
-<<<<<<< Updated upstream
-renderer.setAmbientLightColor([0.23,0.23,0.26])
-renderer.setDirectionalLightColor([0.9,0.9,0.9])
-renderer.setDirectionalLightDirection([-0.2,-1,-0.25])
-renderer.clearColor = [0.258,0.529,0.960,1]
-=======
 //renderer.setAmbientLightColor([0.,0.,0.05])
 //renderer.setDirectionalLightColor([0.01,0.01,0.01])
 //renderer.clearColor = [0,0,0,1]
@@ -131,7 +121,6 @@ renderer.clearColor = [0.258,0.529,0.960,1]*/
 renderer.setDirectionalLightColor([0.9, 0.9, 0.9])
 renderer.setDirectionalLightDirection([-0.2, -1, -0.25])
 renderer.clearColor = [0.258,0.529,0.960,1]*/
->>>>>>> Stashed changes
 
 //test mesh
 /*let cube = webGLextra.meshBuilder.createCube([2000,1,2000])
@@ -238,11 +227,6 @@ rockMaterial.loadTextures()
 let concretePlane = new mesh("assets/models/subdividedPlane.obj", concreteMaterial, [0,0,0])
 concretePlane.scale = [1,1,1]
 concretePlane.buildNormals("flat")
-<<<<<<< Updated upstream
-concretePlane.attachHitbox(new hitbox("box"))
-concretePlane.updateHitbox()
-
-=======
 concretePlane.visible = true
 concretePlane.attachHitbox(new hitbox("box"))
 concretePlane.updateHitbox()
@@ -258,7 +242,6 @@ buildingTest.attachHitbox(new hitbox("box"))
 buildingTest.visible = true
 buildingTest.updateHitbox()*/
 
->>>>>>> Stashed changes
 //let pointLightTest = new pointLight([0,5,0],1000,3200000)
 let pointLightTest2 = new pointLight([0.5,1000,-3.5],1)
 pointLightTest2.linear = 0.07
@@ -269,8 +252,6 @@ pointLightTest2.update()
 let pointLightVisualization = new mesh("assets/models/ico-sphere.obj", concreteMaterial, [0.5,10,-3.5])
 pointLightVisualization.scale = [0.1,0.1,0.1]
 
-<<<<<<< Updated upstream
-=======
 //lamp
 let lampMaterial = new material("assets/textures/lamp.png")
 lampMaterial.filteringMode = "nearest"
@@ -415,7 +396,6 @@ monsterMesh.attachHitbox(new hitbox("box"))
 monsterMesh.updateHitbox()*/
 
 
->>>>>>> Stashed changes
 //sun visualization
 /*let sunMaterial = new material("assets/textures/red.png")
 sunMaterial.loadTextures()
@@ -447,8 +427,6 @@ function tick() {
         lastSecond = new Date().getTime() / 1000
     }
 
-<<<<<<< Updated upstream
-=======
     //thunder
     /*if (totalThunderTime >= requiredThunderTime) {
         if (!thunderHasFlashed) {
@@ -492,7 +470,6 @@ function tick() {
         }
     }*/
 
->>>>>>> Stashed changes
     let ambientC = hexToRgb(document.getElementById("ambient").value)
     let direcC = hexToRgb(document.getElementById("directional").value)
     //renderer.setAmbientLightColor([ambientC[0],ambientC[1],ambientC[2]])
@@ -502,9 +479,6 @@ function tick() {
 
     sunDirection = sunDirection + 0.01 % degToRad(360)
 
-<<<<<<< Updated upstream
-    let newDir = moveVectorForward([0,0],1,sunDirection)
-=======
     //campfire
     let brightnessToRemove = 0.015 + (CampfireBrightness * 0.005)
     
@@ -561,7 +535,6 @@ function tick() {
 
 
     let newDir = moveVectorForward([0,0],0.5,sunDirection)
->>>>>>> Stashed changes
     //renderer.setDirectionalLightDirection([newDir[0],-1,newDir[1]])
     //sunMesh.pos = [newDir[0] * sunDistance,0.8 * sunDistance,newDir[1] * sunDistance]
 
@@ -613,11 +586,7 @@ function tick() {
     //parasol.hitbox.visualizeMeshBox()
     
     //render meshes
-<<<<<<< Updated upstream
-    if (renderer.shadowsEnabled & FPSCounter % 20 === 0) {
-=======
     if (renderer.shadowsEnabled & FPSCounter % 2 === 0) {
->>>>>>> Stashed changes
         renderer.lastShadowRenderCameraMatrix = renderer.cameraMatrix
         renderer.isShadowMap = true
         renderer.perspective = false
